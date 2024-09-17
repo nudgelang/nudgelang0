@@ -1,17 +1,29 @@
 {
   "name": "nudgelang",
-  "version": "1.0.0",
-  "description": "[![GitHub license](https://img.shields.io/github/license/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/blob/main/LICENSE) [![GitHub stars](https://img.shields.io/github/stars/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/stargazers) [![GitHub issues](https://img.shields.io/github/issues/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/issues)",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs",
-    "example": "examples",
-    "test": "tests"
-  },
+  "version": "0.1.0",
+  "description": "A declarative language for crafting sophisticated prompts for Large Language Models",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "lint": "eslint src"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "keywords": ["LLM", "prompt", "AI", "language"],
+  "author": "TerraPrompt",
+  "license": "MIT",
+  "dependencies": {
+    "ohm-js": "^16.0.0",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "jest": "^27.0.0",
+    "eslint": "^7.32.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/terraprompt/nudgelang.git"
+  },
+  "bugs": {
+    "url": "https://github.com/terraprompt/nudgelang/issues"
+  },
+  "homepage": "https://github.com/terraprompt/nudgelang#readme"
 }

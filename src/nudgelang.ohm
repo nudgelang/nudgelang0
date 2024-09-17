@@ -1,0 +1,148 @@
+NudgeLang {
+  Program = ImportStatement* PromptDefinition+
+  
+  ImportStatement = "import" (ImportAll | ImportSpecific) "from" stringLiteral ";"
+  ImportAll = "*" "as" identifier
+  ImportSpecific = "{" ListOf<identifier, ","> "}"
+  
+  PromptDefinition = "prompt" identifier ("extends" identifier)? "{" PromptBody "}"
+  
+  PromptBody = MetaSection? ContextSection? ParamsSection BodySection ConstraintsSection? OutputSection? HooksSection? TechniqueSection?
+  
+  MetaSection = "meta" "{" MetaProperty+ "}"
+  MetaProperty = identifier ":" (stringLiteral | numberLiteral) ";"
+  
+  ContextSection = "context" "{" ContextProperty+ "}"
+  ContextProperty = identifier ":" stringLiteral ";"
+  
+  ParamsSection = "params" "{" ParamDefinition+ "}"
+  ParamDefinition = identifier ":" Type ("?" | "[]")? ("=" Expression)? ";"
+  
+  BodySection = "body" "{" (BodyStatement | ParadigmBlock | PromptReference)+ "}"
+  BodyStatement = TextBlock | CodeBlock | ImageBlock | ConditionalStatement | LoopStatement
+  
+  PromptReference = "use" identifier ("with" "{" ListOf<ParamAssignment, ","> "}")? ";"
+  ParamAssignment = identifier ":" Expression
+  
+  ConstraintsSection = "constraints" "{" ConstraintProperty+ "}"
+  ConstraintProperty = identifier ":" (numberLiteral | booleanLiteral) ";"
+  
+  OutputSection = "output" "{" OutputProperty+ "}"
+  OutputProperty = identifier ":" (stringLiteral | SchemaDefinition) ";"
+  
+  HooksSection = "hooks" "{" HookDefinition+ "}"
+  HookDefinition = ("preProcess" | "postProcess") "(" identifier ")" Block
+  
+  TechniqueSection = "technique" "{" TechniqueDefinition+ "}"
+  TechniqueDefinition = ChainOfThoughtTechnique | FewShotTechnique | ZeroShotTechnique | SelfConsistencyTechnique
+                      | TreeOfThoughtsTechnique | ActivePromptingTechnique | ReWOOTechnique | ReActTechnique
+                      | ReflectionTechnique | ExpertPromptingTechnique | APETechnique | AutoCoTTechnique | ARTTechnique
+  
+  ChainOfThoughtTechnique = "chainOfThought" "{" StepBlock+ "}"
+  StepBlock = "step" "(" stringLiteral ")" "{" BodyStatement+ "}"
+  
+  FewShotTechnique = "fewShot" "{" ExampleBlock+ "}"
+  ExampleBlock = "example" "{" "input" ":" TextBlock "output" ":" TextBlock "}"
+  
+  ZeroShotTechnique = "zeroShot" "{" "instruction" ":" stringLiteral "}"
+  
+  SelfConsistencyTechnique = "selfConsistency" "{" 
+    "generations" ":" numberLiteral
+    "selectionStrategy" ":" stringLiteral
+  "}"
+  
+  TreeOfThoughtsTechnique = "treeOfThoughts" "{" 
+    "breadth" ":" numberLiteral
+    "depth" ":" numberLiteral
+    "evaluationStrategy" ":" stringLiteral
+  "}"
+  
+  ActivePromptingTechnique = "activePrompting" "{" 
+    "uncertaintyEstimation" ":" stringLiteral
+    "selectionStrategy" ":" stringLiteral
+    "annotationProcess" ":" stringLiteral
+  "}"
+  
+  ReWOOTechnique = "reWOO" "{" 
+    "planner" ":" Block
+    "worker" ":" Block
+    "solver" ":" Block
+  "}"
+  
+  ReActTechnique = "reAct" "{" 
+    "observation" ":" Block
+    "thought" ":" Block
+    "action" ":" Block
+  "}"
+  
+  ReflectionTechnique = "reflection" "{" 
+    "reflectionPrompt" ":" stringLiteral
+    "memoryBuffer" ":" stringLiteral
+  "}"
+  
+  ExpertPromptingTechnique = "expertPrompting" "{" 
+    "expertIdentity" ":" stringLiteral
+    "expertDescription" ":" TextBlock
+  "}"
+  
+  APETechnique = "ape" "{" 
+    "candidatePool" ":" numberLiteral
+    "scoreFunction" ":" stringLiteral
+  "}"
+  
+  AutoCoTTechnique = "autoCoT" "{" 
+    "clusteringMethod" ":" stringLiteral
+    "representativeSelection" ":" stringLiteral
+  "}"
+  
+  ARTTechnique = "art" "{" 
+    "taskLibrary" ":" stringLiteral
+    "toolLibrary" ":" stringLiteral
+    "decompositionStrategy" ":" stringLiteral
+  "}"
+  
+  TextBlock = "text" "`" AnnotatedText "`" ";"
+  AnnotatedText = (PlainText | Interpolation | Annotation)*
+  PlainText = (~("`" | "${" | "@") any)+
+  Interpolation = "${" Expression "}"
+  Annotation = "@" annotationType "(" ListOf<AnnotationParam, ","> ")" "{" AnnotatedText "}"
+  
+  CodeBlock = "code" "(" Expression ")" ";"
+  ImageBlock = "image" "(" Expression ("," stringLiteral)? ")" ";"
+  
+  ConditionalStatement = "if" "(" Expression ")" Block ("else" "if" "(" Expression ")" Block)* ("else" Block)?
+  LoopStatement = "for" "(" identifier "of" Expression ")" Block
+  
+  Expression = Literal | identifier | FunctionCall | BinaryExpression
+  Literal = stringLiteral | numberLiteral | booleanLiteral | nullLiteral | ArrayLiteral | ObjectLiteral
+  
+  Type = "string" | "number" | "boolean" | "Image" | "any" | ArrayType | ObjectType
+  ArrayType = Type "[]"
+  ObjectType = "{" ListOf<ObjectTypeProperty, ","> "}"
+  ObjectTypeProperty = identifier ":" Type
+  
+  SchemaDefinition = "{" ListOf<SchemaProperty, ","> "}"
+  SchemaProperty = identifier ":" (Type | SchemaDefinition)
+  
+  Block = "{" Statement* "}"
+  Statement = BodyStatement | VariableDeclaration | ExpressionStatement
+  VariableDeclaration = "let" identifier (":" Type)? "=" Expression ";"
+  ExpressionStatement = Expression ";"
+  
+  FunctionCall = identifier "(" ListOf<Expression, ","> ")"
+  BinaryExpression = Expression binaryOperator Expression
+  
+  annotationType = "emphasis" | "context" | "instruction" | "example" | "definition"
+  AnnotationParam = identifier ":" Expression
+  
+  binaryOperator = "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">="
+  
+  identifier = letter (alnum | "_")*
+  stringLiteral = "\"" (~"\"" any)* "\""
+  numberLiteral = digit+ ("." digit+)?
+  booleanLiteral = "true" | "false"
+  nullLiteral = "null"
+  ArrayLiteral = "[" ListOf<Expression, ","> "]"
+  ObjectLiteral = "{" ListOf<ObjectLiteralProperty, ","> "}"
+  ObjectLiteralProperty = identifier ":" Expression
+}
