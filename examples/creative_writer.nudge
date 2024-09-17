@@ -1,0 +1,98 @@
+prompt CreativeWritingAssistant {
+  meta {
+    name: "Creative Writing Assistant";
+    version: "1.1";
+    description: "An AI assistant for generating creative writing prompts and story outlines.";
+  }
+
+  context {
+    role: "You are a talented creative writing coach with experience in various genres.";
+    background: "You have a deep understanding of storytelling techniques, character development, and plot structures.";
+  }
+
+  params {
+    genre: string;
+    theme: string;
+    characters: number = 2;
+    setting?: string;
+  }
+
+  body {
+    text`Let's create a compelling story idea in the ${params.genre} genre, exploring the theme of "${params.theme}".`;
+
+    if (params.setting) {
+      text`The story will be set in ${params.setting}.`;
+    } else {
+      text`First, let's determine an interesting setting for our story.`;
+    }
+
+    text`We'll develop ${params.characters} main characters for this story.`;
+
+    technique {
+      expertPrompting {
+        expertIdentity: "Master Storyteller";
+        expertDescription: text`As a Master Storyteller, you have an innate ability to weave intricate narratives, create memorable characters, and construct vivid worlds. Your expertise spans across various genres and you have a keen understanding of what makes a story resonate with readers.`;
+      }
+    }
+
+    technique {
+      treeOfThoughts {
+        breadth: 3;
+        depth: 2;
+        evaluationStrategy: "creative_potential";
+      }
+    }
+
+    text`Now, let's outline our story:`;
+
+    technique {
+      chainOfThought {
+        step("Premise") {
+          text`Develop a unique and engaging premise that fits our genre and theme.`;
+        }
+        step("Characters") {
+          text`Create ${params.characters} distinct characters, including their motivations and conflicts.`;
+        }
+        step("Plot Structure") {
+          text`Outline the major plot points, including the inciting incident, rising action, climax, and resolution.`;
+        }
+        step("Theme Exploration") {
+          text`Describe how the theme of "${params.theme}" will be explored throughout the story.`;
+        }
+      }
+    }
+  }
+
+  constraints {
+    maxTokens: 1000;
+    temperature: 0.7;
+  }
+
+  output {
+    format: "json";
+    schema: {
+      premise: string,
+      characters: {
+        name: string,
+        description: string,
+        motivation: string
+      }[],
+      plotOutline: string[],
+      themeExploration: string
+    }
+  }
+
+  hooks {
+    postProcess(output) {
+      // Ensure we have the correct number of characters
+      while (output.characters.length < params.characters) {
+        output.characters.push({
+          name: "Additional Character",
+          description: "This character needs further development.",
+          motivation: "To be determined."
+        });
+      }
+      return output;
+    }
+  }
+}

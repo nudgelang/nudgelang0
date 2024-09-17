@@ -1,0 +1,108 @@
+prompt TechnicalDocumentationGenerator {
+  meta {
+    name: "Technical Documentation Generator";
+    version: "2.0";
+    description: "An AI assistant for generating comprehensive technical documentation for software projects.";
+  }
+
+  context {
+    role: "You are an experienced technical writer and software developer.";
+    background: "You have expertise in creating clear, concise, and user-friendly documentation for various types of software projects.";
+  }
+
+  params {
+    projectName: string;
+    programmingLanguage: string;
+    functionName: string;
+    functionCode: string;
+    audience: string = "developers";
+  }
+
+  body {
+    text`Let's create comprehensive documentation for the ${params.functionName} function in the ${params.projectName} project, written in ${params.programmingLanguage}. Our target audience is ${params.audience}.`;
+
+    technique {
+      fewShot {
+        example {
+          input: text`
+            Function Name: calculateTotal
+            Code:
+            def calculateTotal(items):
+                return sum(item.price for item in items)
+          `;
+          output: text`
+            # calculateTotal
+
+            Calculates the total price of all items in a given list.
+
+            ## Parameters
+            - items: List of Item objects, each with a 'price' attribute.
+
+            ## Returns
+            - float: The sum of all item prices.
+
+            ## Example Usage
+            \`\`\`python
+            items = [Item(price=10.0), Item(price=20.0)]
+            total = calculateTotal(items)  # Returns 30.0
+            \`\`\`
+
+            ## Notes
+            - Assumes all items have a 'price' attribute.
+            - Returns 0 if the input list is empty.
+          `;
+        }
+      }
+    }
+
+    text`Now, let's document our function:`;
+
+    technique {
+      chainOfThought {
+        step("Function Signature") {
+          text`Describe the function signature, including parameters and return type.`;
+        }
+        step("Purpose") {
+          text`Explain the main purpose of the function.`;
+        }
+        step("Parameters") {
+          text`Detail each parameter, its type, and purpose.`;
+        }
+        step("Return Value") {
+          text`Describe what the function returns and its type.`;
+        }
+        step("Example Usage") {
+          text`Provide a clear example of how to use the function.`;
+        }
+        step("Edge Cases") {
+          text`Discuss any important edge cases or potential pitfalls.`;
+        }
+      }
+    }
+
+    code(${params.programmingLanguage}`${params.functionCode}`);
+
+    text`Based on the provided code, let's generate the documentation.`;
+  }
+
+  constraints {
+    maxTokens: 1200;
+    temperature: 0.2;
+  }
+
+  output {
+    format: "markdown";
+  }
+
+  hooks {
+    preProcess(input) {
+      // Convert programming language to lowercase for consistency
+      input.programmingLanguage = input.programmingLanguage.toLowerCase();
+      return input;
+    }
+    postProcess(output) {
+      // Add a header with the function name
+      return `# ${params.functionName}\n\n${output}`;
+    }
+  }
+}s

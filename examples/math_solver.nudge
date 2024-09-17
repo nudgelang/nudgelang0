@@ -1,0 +1,73 @@
+prompt MathProblemSolver {
+  meta {
+    name: "Math Problem Solver";
+    version: "1.0";
+    description: "A prompt for solving mathematical problems step-by-step.";
+  }
+
+  context {
+    role: "You are an expert mathematician.";
+    background: "You have extensive knowledge in algebra, calculus, and problem-solving strategies.";
+  }
+
+  params {
+    problem: string;
+    difficulty: string = "medium";
+    steps?: number;
+  }
+
+  body {
+    text`Let's solve the following ${params.difficulty} mathematical problem:
+
+    ${params.problem}
+
+    We'll break this down step-by-step to arrive at the solution.`;
+
+    technique {
+      chainOfThought {
+        step("Understand the Problem") {
+          text`First, let's clearly state what we're trying to solve and identify the key information provided.`;
+        }
+        step("Devise a Plan") {
+          text`Now, let's outline our approach to solving this problem. What mathematical concepts or formulas will we need to apply?`;
+        }
+        step("Execute the Plan") {
+          text`Let's carry out our plan, showing each mathematical step clearly.`;
+          if (params.steps) {
+            text`We'll aim to complete this in about ${params.steps} steps.`;
+          }
+        }
+        step("Review and Verify") {
+          text`Finally, let's check our solution. Does it make sense? Can we verify it in a different way?`;
+        }
+      }
+    }
+  }
+
+  constraints {
+    maxTokens: 800;
+    temperature: 0.3;
+  }
+
+  output {
+    format: "json";
+    schema: {
+      solution: string,
+      steps: string[],
+      verification: string
+    }
+  }
+
+  hooks {
+    preProcess(input) {
+      // Convert difficulty to lowercase for consistency
+      input.difficulty = input.difficulty.toLowerCase();
+      return input;
+    }
+    postProcess(output) {
+      // Add a confidence score based on the length and detail of the solution
+      output.confidence = Math.min(output.steps.length * 0.1, 1);
+      return output;
+    }
+  }
+}
