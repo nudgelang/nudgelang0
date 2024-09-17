@@ -1,9 +1,11 @@
 const { Configuration, OpenAIApi } = require("openai");
+const Techniques = require("./techniques");
 
 class NudgeLangExecutor {
     constructor(apiKey) {
         const configuration = new Configuration({ apiKey });
         this.openai = new OpenAIApi(configuration);
+        this.techniques = new Techniques(this);
         this.promptLibrary = {};
       }
 
@@ -208,37 +210,9 @@ class NudgeLangExecutor {
     return result;
   }
 
-  applyTechnique(technique, context) {
-    switch (technique.type) {
-      case 'ChainOfThoughtTechnique':
-        return this.applyChainOfThought(technique, context);
-      case 'FewShotTechnique':
-        return this.applyFewShot(technique, context);
-      case 'ZeroShotTechnique':
-        return this.applyZeroShot(technique, context);
-      case 'SelfConsistencyTechnique':
-        return this.applySelfConsistency(technique, context);
-      case 'TreeOfThoughtsTechnique':
-        return this.applyTreeOfThoughts(technique, context);
-      case 'ActivePromptingTechnique':
-        return this.applyActivePrompting(technique, context);
-      case 'ReWOOTechnique':
-        return this.applyReWOO(technique, context);
-      case 'ReActTechnique':
-        return this.applyReAct(technique, context);
-      case 'ReflectionTechnique':
-        return this.applyReflection(technique, context);
-      case 'ExpertPromptingTechnique':
-        return this.applyExpertPrompting(technique, context);
-      case 'APETechnique':
-        return this.applyAPE(technique, context);
-      case 'AutoCoTTechnique':
-        return this.applyAutoCoT(technique, context);
-      case 'ARTTechnique':
-        return this.applyART(technique, context);
-      default:
-        throw new Error(`Unknown technique type: ${technique.type}`);
-    }
+  async applyTechnique(technique, context) {
+    // Use the Techniques instance to apply the technique
+    return await this.techniques[`apply${technique.type}`](technique, context);
   }
 
   registerPrompt(name, promptAst) {
@@ -253,87 +227,6 @@ class NudgeLangExecutor {
     // Here we're assuming the hook is a function that takes the input and returns the processed output
     // In a more advanced implementation, you might want to provide a sandboxed environment for hook execution
     return hook(input);
-  }
-
-  applyChainOfThought(technique, context) {
-    let result = "Let's approach this step-by-step:\n\n";
-    for (const step of technique.steps) {
-      result += `${step.name}:\n${this.interpolate(step.content, context)}\n\n`;
-    }
-    return result;
-  }
-
-  applyFewShot(technique, context) {
-    let result = "Here are some examples:\n\n";
-    for (const example of technique.examples) {
-      result += `Input: ${this.interpolate(example.input, context)}\n`;
-      result += `Output: ${this.interpolate(example.output, context)}\n\n`;
-    }
-    return result;
-  }
-
-  applyZeroShot(technique, context) {
-    return `Instruction: ${this.interpolate(technique.instruction, context)}\n\n`;
-  }
-
-  applySelfConsistency(technique, context) {
-    return `Generate ${technique.generations} different solutions and select the most consistent one using the following strategy: ${technique.selectionStrategy}\n\n`;
-  }
-
-  applyTreeOfThoughts(technique, context) {
-    return `Explore a tree of thoughts with breadth ${technique.breadth} and depth ${technique.depth}. Evaluate using the strategy: ${technique.evaluationStrategy}\n\n`;
-  }
-
-  applyActivePrompting(technique, context) {
-    return `Use active prompting with the following parameters:
-    Uncertainty Estimation: ${technique.uncertaintyEstimation}
-    Selection Strategy: ${technique.selectionStrategy}
-    Annotation Process: ${technique.annotationProcess}\n\n`;
-  }
-
-  applyReWOO(technique, context) {
-    let result = "Apply the ReWOO technique:\n\n";
-    result += `Planner: ${this.executeBlock(technique.planner, context)}\n\n`;
-    result += `Worker: ${this.executeBlock(technique.worker, context)}\n\n`;
-    result += `Solver: ${this.executeBlock(technique.solver, context)}\n\n`;
-    return result;
-  }
-
-  applyReAct(technique, context) {
-    let result = "Apply the ReAct technique:\n\n";
-    result += `Observation: ${this.executeBlock(technique.observation, context)}\n\n`;
-    result += `Thought: ${this.executeBlock(technique.thought, context)}\n\n`;
-    result += `Action: ${this.executeBlock(technique.action, context)}\n\n`;
-    return result;
-  }
-
-  applyReflection(technique, context) {
-    return `Reflection Prompt: ${this.interpolate(technique.reflectionPrompt, context)}
-    Memory Buffer: ${technique.memoryBuffer}\n\n`;
-  }
-
-  applyExpertPrompting(technique, context) {
-    return `Expert Identity: ${this.interpolate(technique.expertIdentity, context)}
-    Expert Description: ${this.interpolate(technique.expertDescription, context)}\n\n`;
-  }
-
-  applyAPE(technique, context) {
-    return `Apply Automatic Prompt Engineering:
-    Candidate Pool Size: ${technique.candidatePool}
-    Score Function: ${technique.scoreFunction}\n\n`;
-  }
-
-  applyAutoCoT(technique, context) {
-    return `Apply Auto-CoT:
-    Clustering Method: ${technique.clusteringMethod}
-    Representative Selection: ${technique.representativeSelection}\n\n`;
-  }
-
-  applyART(technique, context) {
-    return `Apply Automatic Reasoning and Tool-use:
-    Task Library: ${technique.taskLibrary}
-    Tool Library: ${technique.toolLibrary}
-    Decomposition Strategy: ${technique.decompositionStrategy}\n\n`;
   }
 
   async callLLM(prompt, constraints) {
@@ -375,7 +268,7 @@ class NudgeLangExecutor {
       context = await this.executeHooks(ast.hooks, 'preProcess', context);
     }
     
-    const prompt = this.buildPrompt(ast, context);
+    const prompt = await this.buildPrompt(ast, context);
     let result = await this.callLLM(prompt, ast.constraints);
     
     // Execute post-process hook
@@ -385,7 +278,7 @@ class NudgeLangExecutor {
     
     return this.processOutput(result, ast.output);
   }
-  
+
 }
 
 module.exports = NudgeLangExecutor;
