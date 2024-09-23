@@ -14,7 +14,7 @@ prompt CreativeWritingAssistant {
     genre: string;
     theme: string;
     characters: number = 2;
-    setting?: string;
+    setting: string;
   }
 
   body {

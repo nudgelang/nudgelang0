@@ -148,7 +148,7 @@ class Techniques {
         const thoughts = [];
         for (let i = 0; i < breadth; i++) {
           const response = await this.openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-4o",
             messages: [{ role: "user", content: `Generate an initial thought for: ${prompt}` }],
           });
           thoughts.push(response.choices[0].message.content);
@@ -161,7 +161,7 @@ class Techniques {
         for (const thought of thoughts) {
           for (let i = 0; i < breadth; i++) {
             const response = await this.openai.chat.completions.create({
-              model: "gpt-3.5-turbo",
+              model: "gpt-4o",
               messages: [
                 { role: "system", content: JSON.stringify(context) },
                 { role: "user", content: `Expand on this thought: ${thought}` }
@@ -222,7 +222,7 @@ class Techniques {
           case 'auto':
             return Promise.all(questions.map(async q => {
               const response = await this.openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
+                model: "gpt-4o",
                 messages: [{ role: "user", content: `Annotate this question: ${q}` }],
               });
               return { ...q, annotation: response.choices[0].message.content };
@@ -235,7 +235,7 @@ class Techniques {
       async selectBestCandidate(candidates, scoreFunction) {
         const scores = await Promise.all(candidates.map(async c => {
           const response = await this.openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-4o",
             messages: [{ role: "user", content: `Score this candidate using ${scoreFunction}: ${c}` }],
           });
           return { candidate: c, score: parseFloat(response.choices[0].message.content) };

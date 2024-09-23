@@ -2,9 +2,8 @@ const { Configuration, OpenAIApi } = require("openai");
 const Techniques = require("./techniques");
 
 class NudgeLangExecutor {
-    constructor(apiKey) {
-        const configuration = new Configuration({ apiKey });
-        this.openai = new OpenAIApi(configuration);
+    constructor(openai) {
+        this.openai = openai;
         this.techniques = new Techniques(this);
         this.promptLibrary = {};
       }
@@ -231,16 +230,16 @@ class NudgeLangExecutor {
 
   async callLLM(prompt, constraints) {
     try {
-      const response = await this.openai.createCompletion({
-        model: "text-davinci-002", // or another appropriate model
-        prompt: prompt,
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4o", // or another appropriate model
+        messages: [{ role: "user", content: prompt }],
         max_tokens: constraints.maxTokens || 100,
         temperature: constraints.temperature || 0.5,
         top_p: constraints.topP || 1,
         frequency_penalty: constraints.frequencyPenalty || 0,
         presence_penalty: constraints.presencePenalty || 0,
       });
-      return response.data.choices[0].text.trim();
+      return response.choices[0].message.content;
     } catch (error) {
       console.error("Error calling OpenAI API:", error);
       throw new Error("Failed to generate response from LLM");

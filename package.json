@@ -1,22 +1,32 @@
 {
   "name": "nudgelang",
   "version": "0.1.0",
+  "bin": {
+    "nudge": "./src/cli.js"
+  },
   "description": "A declarative language for crafting sophisticated prompts for Large Language Models",
   "main": "src/index.js",
   "scripts": {
     "test": "jest",
     "lint": "eslint src"
   },
-  "keywords": ["LLM", "prompt", "AI", "language"],
+  "keywords": [
+    "LLM",
+    "prompt",
+    "AI",
+    "language"
+  ],
   "author": "TerraPrompt",
   "license": "MIT",
   "dependencies": {
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
     "ohm-js": "^16.0.0",
-    "openai": "^4.0.0"
+    "openai": "^4.63.0"
   },
   "devDependencies": {
-    "jest": "^27.0.0",
-    "eslint": "^7.32.0"
+    "eslint": "^7.32.0",
+    "jest": "^27.5.1"
   },
   "repository": {
     "type": "git",

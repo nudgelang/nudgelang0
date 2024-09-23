@@ -34,7 +34,7 @@ semantics.addOperation('ast', {
       names: names.ast()
     };
   },
-  PromptDefinition(_prompt, name, extend, _left, body, _right) {
+  PromptDefinition(_prompt, name, extend, _left, body, _right, _) {
     return {
       type: 'PromptDefinition',
       name: name.ast(),
@@ -84,7 +84,7 @@ semantics.addOperation('ast', {
       params: definitions.ast()
     };
   },
-  ParamDefinition(name, _colon, paramType, optional, defaultValue, _semi) {
+  ParamDefinition(name, _colon, paramType, optional, defaultValue, _semi, _) {
     return {
       name: name.ast(),
       paramType: paramType.ast(),
@@ -99,7 +99,7 @@ semantics.addOperation('ast', {
       statements: statements.ast()
     };
   },
-  PromptReference(_use, name, withClause, _semi) {
+  PromptReference(_use, name, withClause, _semi, _, __, ___) {
     return {
       type: 'PromptReference',
       name: name.ast(),
@@ -269,7 +269,7 @@ semantics.addOperation('ast', {
       text: text.sourceString
     };
   },
-  Interpolation(_dollar, _left, expr, _right) {
+  Interpolation(_dollar, _left, expr) {
     return {
       type: 'Interpolation',
       expression: expr.ast()
@@ -289,14 +289,14 @@ semantics.addOperation('ast', {
       code: expr.ast()
     };
   },
-  ImageBlock(_image, _left, expr, optionalDesc, _right, _semi) {
+  ImageBlock(_image, _left, expr, optionalDesc, _right, _semi, _) {
     return {
       type: 'ImageBlock',
       image: expr.ast(),
       description: optionalDesc.ast()[0]
     };
   },
-  ConditionalStatement(_if, _left, condition, _right, ifBlock, elseIfs, elseBlock) {
+  ConditionalStatement(_if, _left, condition, _right, ifBlock, elseIfs, elseBlock,_, __, ___, ____, _____, ______) {
     return {
       type: 'ConditionalStatement',
       condition: condition.ast(),
@@ -358,7 +358,7 @@ semantics.addOperation('ast', {
   Statement(stmt) {
     return stmt.ast();
   },
-  VariableDeclaration(_let, name, optionalType, _eq, value, _semi) {
+  VariableDeclaration(_let, name, optionalType, _eq, value, _semi, _) {
     return {
       type: 'VariableDeclaration',
       name: name.ast(),
@@ -393,7 +393,7 @@ semantics.addOperation('ast', {
       value: value.ast()
     };
   },
-  identifier(name) {
+  identifier(name, _) {
     return name.sourceString;
   },
   stringLiteral(_open, chars, _close) {
@@ -402,7 +402,7 @@ semantics.addOperation('ast', {
       value: chars.sourceString
     };
   },
-  numberLiteral(digits, optionalFraction) {
+  numberLiteral(digits, optionalFraction, _) {
     return {
       type: 'NumberLiteral',
       value: parseFloat(this.sourceString)

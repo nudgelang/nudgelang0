@@ -1,8 +1,8 @@
 const { parseNudgeLang } = require('./parser');
 const NudgeLangExecutor = require('./executor');
 
-function createNudgeLang(apiKey) {
-  const executor = new NudgeLangExecutor(apiKey);
+function createNudgeLang(openai) {
+  const executor = new NudgeLangExecutor(openai);
 
   return {
     parsePrompt: parseNudgeLang,
