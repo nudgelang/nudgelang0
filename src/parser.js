@@ -1,451 +1,448 @@
+// parser.js
 const ohm = require('ohm-js');
 const fs = require('fs');
 const path = require('path');
 
-const grammarFile = path.join(__dirname, 'nudgelang.ohm');
-const grammar = ohm.grammar(fs.readFileSync(grammarFile, 'utf-8'));
-
-const semantics = grammar.createSemantics();
-
-semantics.addOperation('ast', {
-  Program(imports, prompts) {
-    return {
-      type: 'Program',
-      imports: imports.ast(),
-      prompts: prompts.ast()
-    };
-  },
-  ImportStatement(_import, spec, _from, path, _semi) {
-    return {
-      type: 'ImportStatement',
-      spec: spec.ast(),
-      path: path.ast()
-    };
-  },
-  ImportAll(_star, _as, name) {
-    return {
-      type: 'ImportAll',
-      name: name.ast()
-    };
-  },
-  ImportSpecific(_left, names, _right) {
-    return {
-      type: 'ImportSpecific',
-      names: names.ast()
-    };
-  },
-  PromptDefinition(_prompt, name, extend, _left, body, _right, _) {
-    return {
-      type: 'PromptDefinition',
-      name: name.ast(),
-      extends: extend.ast()[0] || null,
-      body: body.ast()
-    };
-  },
-  PromptBody(meta, context, params, body, constraints, output, hooks, technique) {
-    return {
-      meta: meta.ast()[0] || null,
-      context: context.ast()[0] || null,
-      params: params.ast()[0] || null,
-      body: body.ast(),
-      constraints: constraints.ast()[0] || null,
-      output: output.ast()[0] || null,
-      hooks: hooks.ast()[0] || null,
-      technique: technique.ast()[0] || null
-    };
-  },
-  MetaSection(_meta, _left, properties, _right) {
-    return {
-      type: 'MetaSection',
-      properties: properties.ast()
-    };
-  },
-  MetaProperty(name, _colon, value, _semi) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
-  },
-  ContextSection(_context, _left, properties, _right) {
-    return {
-      type: 'ContextSection',
-      properties: properties.ast()
-    };
-  },
-  ContextProperty(name, _colon, value, _semi) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
-  },
-  ParamsSection(_params, _left, definitions, _right) {
-    return {
-      type: 'ParamsSection',
-      params: definitions.ast()
-    };
-  },
-  ParamDefinition(name, _colon, paramType, optional, defaultValue, _semi, _) {
-    return {
-      name: name.ast(),
-      paramType: paramType.ast(),
-      optional: optional.ast()[0] === '?',
-      isArray: optional.ast()[0] === '[]',
-      defaultValue: defaultValue.ast()[0] || null
-    };
-  },
-  BodySection(_body, _left, statements, _right) {
-    return {
-      type: 'BodySection',
-      statements: statements.ast()
-    };
-  },
-  PromptReference(_use, name, withClause, _semi, _, __, ___) {
-    return {
-      type: 'PromptReference',
-      name: name.ast(),
-      params: withClause.ast()[0] || null
-    };
-  },
-  ConstraintsSection(_constraints, _left, properties, _right) {
-    return {
-      type: 'ConstraintsSection',
-      constraints: properties.ast()
-    };
-  },
-  ConstraintProperty(name, _colon, value, _semi) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
-  },
-  OutputSection(_output, _left, properties, _right) {
-    return {
-      type: 'OutputSection',
-      properties: properties.ast()
-    };
-  },
-  OutputProperty(name, _colon, value, _semi) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
-  },
-  HooksSection(_hooks, _left, definitions, _right) {
-    return {
-      type: 'HooksSection',
-      hooks: definitions.ast()
-    };
-  },
-  HookDefinition(type, _left, param, _right, block) {
-    return {
-      type: type.sourceString,
-      param: param.ast(),
-      block: block.ast()
-    };
-  },
-  TechniqueSection(_technique, _left, definitions, _right) {
-    return {
-      type: 'TechniqueSection',
-      techniques: definitions.ast()
-    };
-  },
-  ChainOfThoughtTechnique(_cot, _left, steps, _right) {
-    return {
-      type: 'ChainOfThoughtTechnique',
-      steps: steps.ast()
-    };
-  },
-  StepBlock(_step, _leftParen, name, _rightParen, _left, content, _right) {
-    return {
-      name: name.ast(),
-      content: content.ast()
-    };
-  },
-  FewShotTechnique(_fewShot, _left, examples, _right) {
-    return {
-      type: 'FewShotTechnique',
-      examples: examples.ast()
-    };
-  },
-  ExampleBlock(_example, _left, _input, _colon1, input, _output, _colon2, output, _right) {
-    return {
-      input: input.ast(),
-      output: output.ast()
-    };
-  },
-  ZeroShotTechnique(_zeroShot, _left, _instruction, _colon, instruction, _right) {
-    return {
-      type: 'ZeroShotTechnique',
-      instruction: instruction.ast()
-    };
-  },
-  SelfConsistencyTechnique(_selfConsistency, _left, _generations, _colon1, generations, _selectionStrategy, _colon2, strategy, _right) {
-    return {
-      type: 'SelfConsistencyTechnique',
-      generations: generations.ast(),
-      selectionStrategy: strategy.ast()
-    };
-  },
-  TreeOfThoughtsTechnique(_tot, _left, _breadth, _colon1, breadth, _depth, _colon2, depth, _evalStrategy, _colon3, strategy, _right) {
-    return {
-      type: 'TreeOfThoughtsTechnique',
-      breadth: breadth.ast(),
-      depth: depth.ast(),
-      evaluationStrategy: strategy.ast()
-    };
-  },
-  ActivePromptingTechnique(_active, _left, _uncertainty, _colon1, uncertainty, _selection, _colon2, selection, _annotation, _colon3, annotation, _right) {
-    return {
-      type: 'ActivePromptingTechnique',
-      uncertaintyEstimation: uncertainty.ast(),
-      selectionStrategy: selection.ast(),
-      annotationProcess: annotation.ast()
-    };
-  },
-  ReWOOTechnique(_rewoo, _left, _planner, _colon1, planner, _worker, _colon2, worker, _solver, _colon3, solver, _right) {
-    return {
-      type: 'ReWOOTechnique',
-      planner: planner.ast(),
-      worker: worker.ast(),
-      solver: solver.ast()
-    };
-  },
-  ReActTechnique(_react, _left, _observation, _colon1, observation, _thought, _colon2, thought, _action, _colon3, action, _right) {
-    return {
-      type: 'ReActTechnique',
-      observation: observation.ast(),
-      thought: thought.ast(),
-      action: action.ast
-    };
-  },
-  ReflectionTechnique(_reflection, _left, _prompt, _colon1, prompt, _buffer, _colon2, buffer, _right) {
-    return {
-      type: 'ReflectionTechnique',
-      reflectionPrompt: prompt.ast(),
-      memoryBuffer: buffer.ast()
-    };
-  },
-  ExpertPromptingTechnique(_expert, _left, _identity, _colon1, identity, _description, _colon2, description, _right) {
-    return {
-      type: 'ExpertPromptingTechnique',
-      expertIdentity: identity.ast(),
-      expertDescription: description.ast()
-    };
-  },
-  APETechnique(_ape, _left, _pool, _colon1, pool, _score, _colon2, score, _right) {
-    return {
-      type: 'APETechnique',
-      candidatePool: pool.ast(),
-      scoreFunction: score.ast()
-    };
-  },
-  AutoCoTTechnique(_autocot, _left, _clustering, _colon1, clustering, _selection, _colon2, selection, _right) {
-    return {
-      type: 'AutoCoTTechnique',
-      clusteringMethod: clustering.ast(),
-      representativeSelection: selection.ast()
-    };
-  },
-  ARTTechnique(_art, _left, _task, _colon1, task, _tool, _colon2, tool, _decomp, _colon3, decomp, _right) {
-    return {
-      type: 'ARTTechnique',
-      taskLibrary: task.ast(),
-      toolLibrary: tool.ast(),
-      decompositionStrategy: decomp.ast()
-    };
-  },
-  TextBlock(_text, _backtick1, content, _backtick2, _semi) {
-    return {
-      type: 'TextBlock',
-      content: content.ast()
-    };
-  },
-  AnnotatedText(elements) {
-    return elements.ast();
-  },
-  PlainText(text) {
-    return {
-      type: 'PlainText',
-      text: text.sourceString
-    };
-  },
-  Interpolation(_dollar, _left, expr) {
-    return {
-      type: 'Interpolation',
-      expression: expr.ast()
-    };
-  },
-  Annotation(_at, annotationType, _left, params, _right, _leftBrace, content, _rightBrace) {
-    return {
-      type: 'Annotation',
-      annotationType: annotationType.ast(),
-      params: params.ast(),
-      content: content.ast()
-    };
-  },
-  CodeBlock(_code, _left, expr, _right, _semi) {
-    return {
-      type: 'CodeBlock',
-      code: expr.ast()
-    };
-  },
-  ImageBlock(_image, _left, expr, optionalDesc, _right, _semi, _) {
-    return {
-      type: 'ImageBlock',
-      image: expr.ast(),
-      description: optionalDesc.ast()[0]
-    };
-  },
-  ConditionalStatement(_if, _left, condition, _right, ifBlock, elseIfs, elseBlock,_, __, ___, ____, _____, ______) {
-    return {
-      type: 'ConditionalStatement',
-      condition: condition.ast(),
-      ifBlock: ifBlock.ast(),
-      elseIfs: elseIfs.ast(),
-      elseBlock: elseBlock.ast()[0]
-    };
-  },
-  LoopStatement(_for, _left, variable, _of, iterable, _right, block) {
-    return {
-      type: 'LoopStatement',
-      variable: variable.ast(),
-      iterable: iterable.ast(),
-      block: block.ast()
-    };
-  },
-  Expression(expr) {
-    return expr.ast();
-  },
-  Literal(literal) {
-    return literal.ast();
-  },
-  Type(type) {
-    return type.sourceString;
-  },
-  ArrayType(baseType, _brackets) {
-    return {
-      type: 'ArrayType',
-      baseType: baseType.ast()
-    };
-  },
-  ObjectType(_left, properties, _right) {
-    return {
-      type: 'ObjectType',
-      properties: properties.ast()
-    };
-  },
-  ObjectTypeProperty(name, _colon, type) {
-    return {
-      name: name.ast(),
-      type: type.ast()
-    };
-  },
-  SchemaDefinition(_left, properties, _right) {
-    return {
-      type: 'SchemaDefinition',
-      properties: properties.ast()
-    };
-  },
-  SchemaProperty(name, _colon, value) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
-  },
-  Block(_left, statements, _right) {
-    return statements.ast();
-  },
-  Statement(stmt) {
-    return stmt.ast();
-  },
-  VariableDeclaration(_let, name, optionalType, _eq, value, _semi, _) {
-    return {
-      type: 'VariableDeclaration',
-      name: name.ast(),
-      variableType: optionalType.ast()[0],
-      value: value.ast()
-    };
-  },
-  ExpressionStatement(expr, _semi) {
-    return expr.ast();
-  },
-  FunctionCall(name, _left, args, _right) {
-    return {
-      type: 'FunctionCall',
-      name: name.ast(),
-      arguments: args.ast()
-    };
-  },
-  BinaryExpression(left, op, right) {
-    return {
-      type: 'BinaryExpression',
-      left: left.ast(),
-      operator: op.sourceString,
-      right: right.ast()
-    };
-  },
-  annotationType(type) {
-    return type.sourceString;
-  },
-  AnnotationParam(name, _colon, value) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
-  },
-  identifier(name, _) {
-    return name.sourceString;
-  },
-  stringLiteral(_open, chars, _close) {
-    return {
-      type: 'StringLiteral',
-      value: chars.sourceString
-    };
-  },
-  numberLiteral(digits, optionalFraction, _) {
-    return {
-      type: 'NumberLiteral',
-      value: parseFloat(this.sourceString)
-    };
-  },
-  booleanLiteral(value) {
-    return {
-      type: 'BooleanLiteral',
-      value: value.sourceString === 'true'
-    };
-  },
-  nullLiteral(_) {
-    return {
-      type: 'NullLiteral',
-      value: null
-    };
-  },
-  ArrayLiteral(_left, elements, _right) {
-    return {
-      type: 'ArrayLiteral',
-      elements: elements.ast()
-    };
-  },
-  ObjectLiteral(_left, properties, _right) {
-    return {
-      type: 'ObjectLiteral',
-      properties: properties.ast()
-    };
-  },
-  ObjectLiteralProperty(name, _colon, value) {
-    return {
-      name: name.ast(),
-      value: value.ast()
-    };
+class NudgeLangParser {
+  constructor() {
+    const grammarFile = path.join(__dirname, 'nudgelang.ohm');
+    const grammarContent = fs.readFileSync(grammarFile, 'utf-8');
+    this.grammar = ohm.grammar(grammarContent);
+    this.semantics = this.grammar.createSemantics();
+    this.defineSemantics();
   }
-});
 
-function parseNudgeLang(code) {
-    const matchResult = grammar.match(code);
-    if (matchResult.failed()) {
-      throw new Error(matchResult.message);
+  defineSemantics() {
+    this.semantics.addOperation('toAST', {
+      Program(prompts) {
+        return {
+          type: 'Program',
+          prompts: prompts.toAST(),
+        };
+      },
+      Prompt(_prompt, name, _open, sections, _close) {
+        return {
+          type: 'Prompt',
+          name: name.sourceString,
+          sections: sections.toAST(),
+        };
+      },
+      Section(section) {
+        return section.toAST();
+      },
+      MetaSection(_meta, _open, fields, _close) {
+        return {
+          type: 'MetaSection',
+          fields: fields.toAST(),
+        };
+      },
+      MetaField(name, _colon, value, _semicolon) {
+        return {
+          type: 'MetaField',
+          name: name.sourceString,
+          value: value.toAST(),
+        };
+      },
+      ContextSection(_context, _open, fields, _close) {
+        return {
+          type: 'ContextSection',
+          fields: fields.toAST(),
+        };
+      },
+      ContextField(name, _colon, value, _semicolon) {
+        return {
+          type: 'ContextField',
+          name: name.sourceString,
+          value: value.toAST(),
+        };
+      },
+      ParamsSection(_params, _open, declarations, _close) {
+        return {
+          type: 'ParamsSection',
+          params: declarations.toAST(),
+        };
+      },
+      ParamDeclaration(name, _colon, paramType, _equals, defaultValue, _semicolon) {
+        return {
+          type: 'ParamDeclaration',
+          name: name.sourceString,
+          paramType: paramType.toAST(),
+          defaultValue: defaultValue.toAST()[0] || null,
+        };
+      },
+      Type(type) {
+        return type.sourceString;
+      },
+      ArrayType(baseType, _brackets) {
+        return `${baseType.toAST()}[]`;
+      },
+      OptionalType(baseType, _question) {
+        return `${baseType.toAST()}?`;
+      },
+      BodySection(_body, _open, content, _close) {
+        return {
+          type: 'BodySection',
+          content: content.toAST(),
+        };
+      },
+      BodyContent(content) {
+        return content.toAST();
+      },
+      TextBlock(_text, content, _semicolon) {
+        return {
+          type: 'TextBlock',
+          content: content.toAST(),
+        };
+      },
+      BacktickString(_open, content, _close) {
+        return content.toAST();
+      },
+      BacktickContent(_content) {
+        return this.sourceString;
+      },
+      Interpolation(_open, expr, _close) {
+        return {
+          type: 'Interpolation',
+          expression: expr.toAST(),
+        };
+      },
+      CodeBlock(_code, _open, language, content, _close, _semicolon) {
+        return {
+          type: 'CodeBlock',
+          language: language.sourceString,
+          content: content.toAST(),
+        };
+      },
+      ImageBlock(_image, _open, src, _comma, alt, _close, _semicolon) {
+        return {
+          type: 'ImageBlock',
+          src: src.toAST(),
+          alt: alt.toAST(),
+        };
+      },
+      ControlStructure(structure) {
+        return structure.toAST();
+      },
+      IfStatement(_if, _open, condition, _close, thenBlock, _else, elseBlock) {
+        return {
+          type: 'IfStatement',
+          condition: condition.toAST(),
+          thenBlock: thenBlock.toAST(),
+          elseBlock: elseBlock.toAST()[0] || null,
+        };
+      },
+      ForLoop(_for, _open, variable, _of, iterable, _close, block) {
+        return {
+          type: 'ForLoop',
+          variable: variable.sourceString,
+          iterable: iterable.toAST(),
+          block: block.toAST(),
+        };
+      },
+      Block(_open, content, _close) {
+        return content.toAST();
+      },
+      UseStatement(_use, promptName, _with, _open, params, _close, _semicolon) {
+        return {
+          type: 'UseStatement',
+          promptName: promptName.sourceString,
+          params: params.toAST(),
+        };
+      },
+      ParamAssignment(name, _colon, value, _comma) {
+        return {
+          type: 'ParamAssignment',
+          name: name.sourceString,
+          value: value.toAST(),
+        };
+      },
+      ExpressionStatement(expr, _semicolon) {
+        return {
+          type: 'ExpressionStatement',
+          expression: expr.toAST(),
+        };
+      },
+      ConstraintsSection(_constraints, _open, fields, _close) {
+        return {
+          type: 'ConstraintsSection',
+          constraints: fields.toAST(),
+        };
+      },
+      ConstraintField(name, _colon, value, _semicolon) {
+        return {
+          type: 'ConstraintField',
+          name: name.sourceString,
+          value: value.toAST(),
+        };
+      },
+      OutputSection(_output, _open, fields, _close) {
+        return {
+          type: 'OutputSection',
+          fields: fields.toAST(),
+        };
+      },
+      OutputField(name, _colon, value, _semicolon) {
+        return {
+          type: 'OutputField',
+          name: name.sourceString,
+          value: value.toAST(),
+        };
+      },
+      HooksSection(_hooks, _open, definitions, _close) {
+        return {
+          type: 'HooksSection',
+          hooks: definitions.toAST(),
+        };
+      },
+      HookDefinition(name, _open, param, _close, block) {
+        return {
+          type: 'HookDefinition',
+          name: name.sourceString,
+          param: param.sourceString,
+          block: block.toAST(),
+        };
+      },
+      TechniqueSection(_technique, _open, definitions, _close) {
+        return {
+          type: 'TechniqueSection',
+          techniques: definitions.toAST(),
+        };
+      },
+      TechniqueDefinition(technique) {
+        return technique.toAST();
+      },
+      ChainOfThought(_cot, _open, steps, _close) {
+        return {
+          type: 'ChainOfThought',
+          steps: steps.toAST(),
+        };
+      },
+      ChainOfThoughtStep(_step, _open, name, _close, block) {
+        return {
+          type: 'ChainOfThoughtStep',
+          name: name.toAST(),
+          block: block.toAST(),
+        };
+      },
+      FewShot(_fewShot, _open, examples, _close) {
+        return {
+          type: 'FewShot',
+          examples: examples.toAST(),
+        };
+      },
+      FewShotExample(_example, _open, _input, _colon1, input, _output, _colon2, output, _close) {
+        return {
+          type: 'FewShotExample',
+          input: input.toAST(),
+          output: output.toAST(),
+        };
+      },
+      ZeroShot(_zeroShot, _open, fields, _close) {
+        return {
+          type: 'ZeroShot',
+          fields: fields.toAST(),
+        };
+      },
+      SelfConsistency(_selfConsistency, _open, fields, _close) {
+        return {
+          type: 'SelfConsistency',
+          fields: fields.toAST(),
+        };
+      },
+      TreeOfThoughts(_tot, _open, fields, _close) {
+        return {
+          type: 'TreeOfThoughts',
+          fields: fields.toAST(),
+        };
+      },
+      ActivePrompting(_activePrompting, _open, fields, _close) {
+        return {
+          type: 'ActivePrompting',
+          fields: fields.toAST(),
+        };
+      },
+      ReWOO(_rewoo, _open, components, _close) {
+        return {
+          type: 'ReWOO',
+          components: components.toAST(),
+        };
+      },
+      ReWOOComponent(name, _open, content, _close) {
+        return {
+          type: 'ReWOOComponent',
+          name: name.sourceString,
+          content: content.toAST(),
+        };
+      },
+      ReAct(_react, _open, components, _close) {
+        return {
+          type: 'ReAct',
+          components: components.toAST(),
+        };
+      },
+      ReActComponent(name, _open, content, _close) {
+        return {
+          type: 'ReActComponent',
+          name: name.sourceString,
+          content: content.toAST(),
+        };
+      },
+      Reflection(_reflection, _open, fields, _close) {
+        return {
+          type: 'Reflection',
+          fields: fields.toAST(),
+        };
+      },
+      ExpertPrompting(_expertPrompting, _open, fields, _close) {
+        return {
+          type: 'ExpertPrompting',
+          fields: fields.toAST(),
+        };
+      },
+      APE(_ape, _open, fields, _close) {
+        return {
+          type: 'APE',
+          fields: fields.toAST(),
+        };
+      },
+      AutoCoT(_autoCot, _open, fields, _close) {
+        return {
+          type: 'AutoCoT',
+          fields: fields.toAST(),
+        };
+      },
+      ART(_art, _open, fields, _close) {
+        return {
+          type: 'ART',
+          fields: fields.toAST(),
+        };
+      },
+      TechniqueField(name, _colon, value, _semicolon) {
+        return {
+          type: 'TechniqueField',
+          name: name.sourceString,
+          value: value.toAST(),
+        };
+      },
+      Expression(expr) {
+        return expr.toAST();
+      },
+      BinaryExpression_binary(left, op, right) {
+        return {
+          type: 'BinaryExpression',
+          operator: op.sourceString,
+          left: left.toAST(),
+          right: right.toAST(),
+        };
+      },
+      BinaryExpression_comparison(expr) {
+        return expr.toAST();
+      },
+      ComparisonExpression(left, op, right) {
+        return {
+          type: 'ComparisonExpression',
+          operator: op.sourceString,
+          left: left.toAST(),
+          right: right.toAST(),
+        };
+      },
+      UnaryExpression(op, expr) {
+        return {
+          type: 'UnaryExpression',
+          operator: op.sourceString,
+          expression: expr.toAST(),
+        };
+      },
+      CallExpression(callee, _open, args, _close) {
+        return {
+          type: 'CallExpression',
+          callee: callee.toAST(),
+          arguments: args.asIteration().toAST(),
+        };
+      },
+      MemberExpression(object, _dots, properties) {
+        return {
+          type: 'MemberExpression',
+          object: object.toAST(),
+          properties: properties.asIteration().sourceString,
+        };
+      },
+      PrimaryExpression(expr) {
+        return expr.toAST();
+      },
+      ParenExpression(_open, expr, _close) {
+        return expr.toAST();
+      },
+      ObjectLiteral(_open, properties, _close) {
+        return {
+          type: 'ObjectLiteral',
+          properties: properties.asIteration().toAST(),
+        };
+      },
+      PropertyAssignment(key, _colon, value) {
+        return {
+          type: 'PropertyAssignment',
+          key: key.toAST(),
+          value: value.toAST(),
+        };
+      },
+      ArrayLiteral(_open, elements, _close) {
+        return {
+          type: 'ArrayLiteral',
+          elements: elements.asIteration().toAST(),
+        };
+      },
+      Literal(value) {
+        const sourceString = this.sourceString;
+        if (sourceString === 'true' || sourceString === 'false') {
+          return {
+            type: 'BooleanLiteral',
+            value: sourceString === 'true',
+          };
+        } else if (sourceString === 'null') {
+          return {
+            type: 'NullLiteral',
+            value: null,
+          };
+        } else {
+          return value.toAST();
+        }
+      },
+      identifier(_first, _rest) {
+        return {
+          type: 'Identifier',
+          name: this.sourceString,
+        };
+      },
+      number(_whole, _dot, _fraction) {
+        return {
+          type: 'NumberLiteral',
+          value: parseFloat(this.sourceString),
+        };
+      },
+      string(_open, _content, _close) {
+        return {
+          type: 'StringLiteral',
+          value: this.sourceString.slice(1, -1), // Remove quotes
+        };
+      },
+      _iter(...children) {
+        return children.map(c => c.toAST());
+      },
+      _terminal() {
+        return this.sourceString;
+      },
+    });
+  }
+
+  parse(code) {
+    const matchResult = this.grammar.match(code);
+    if (matchResult.succeeded()) {
+      return this.semantics(matchResult).toAST();
+    } else {
+      throw new Error('Parsing failed: ' + matchResult.message);
     }
-    return semantics(matchResult).ast();
   }
-  
-  module.exports = { parseNudgeLang };
+}
+
+module.exports = NudgeLangParser;

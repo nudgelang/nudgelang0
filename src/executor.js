@@ -1,283 +1,269 @@
-const { Configuration, OpenAIApi } = require("openai");
-const Techniques = require("./techniques");
+// executor.js
+const { createProvider } = require('./provider');
 
 class NudgeLangExecutor {
-    constructor(openai) {
-        this.openai = openai;
-        this.techniques = new Techniques(this);
-        this.promptLibrary = {};
-      }
-
-  validateAST(ast) {
-    // Implement AST validation logic
-    // Throw error if AST is invalid
+  constructor(providerType, apiKey) {
+    this.provider = createProvider(providerType, apiKey);
+    this.registeredPrompts = new Map();
   }
 
-  buildContext(ast, params) {
-    return {
-      ...ast.context,
-      ...params
+  setProvider(providerType, apiKey) {
+    this.provider = createProvider(providerType, apiKey);
+  }
+
+  registerPrompt(name, ast) {
+    this.registeredPrompts.set(name, ast);
+  }
+
+  async execute(ast, params = {}) {
+    if (ast.type !== 'Prompt') {
+      throw new Error('Invalid AST: Root node must be a Prompt');
+    }
+
+    const context = {
+      params,
+      meta: {},
+      context: {},
+      constraints: {},
+      output: {},
+      hooks: {},
     };
+
+    for (const section of ast.sections) {
+      await this.executeSection(section, context);
+    }
+
+    const finalPrompt = this.generateFinalPrompt(context);
+    const response = await this.provider.generateResponse(finalPrompt, context.constraints);
+
+    if (context.hooks.postProcess) {
+      return context.hooks.postProcess(response);
+    }
+
+    return response;
   }
 
-  buildPrompt(ast, context) {
-    let prompt = '';
-    
-    if (ast.meta) {
-      prompt += this.buildMetaSection(ast.meta);
-    }
-    
-    if (ast.context) {
-      prompt += this.buildContextSection(ast.context);
-    }
-    
-    prompt += this.buildBodySection(ast.body, context);
-    
-    if (ast.technique) {
-      prompt += this.applyTechniques(ast.technique, context);
-    }
-    
-    return prompt;
-  }
-
-  buildMetaSection(meta) {
-    let section = "Metadata:\n";
-    for (const prop of meta.properties) {
-      section += `${prop.name}: ${prop.value}\n`;
-    }
-    return section + "\n";
-  }
-
-  buildContextSection(context) {
-    let section = "Context:\n";
-    for (const prop of context.properties) {
-      section += `${prop.name}: ${prop.value}\n`;
-    }
-    return section + "\n";
-  }
-
-  buildBodySection(body, context) {
-    let section = "";
-    for (const statement of body.statements) {
-      section += this.executeStatement(statement, context);
-    }
-    return section;
-  }
-
-  executeStatement(statement, context) {
-    switch (statement.type) {
-      case 'TextBlock':
-        return this.interpolate(statement.content, context);
-      case 'CodeBlock':
-        return `Code:\n${statement.code}\n`;
-      case 'ImageBlock':
-        return `[Image: ${statement.image}${statement.description ? ` - ${statement.description}` : ''}]\n`;
-      case 'ConditionalStatement':
-        return this.executeConditionalStatement(statement, context);
-      case 'LoopStatement':
-        return this.executeLoopStatement(statement, context);
-      case 'PromptReference':
-        return this.executePromptReference(statement, context);
+  async executeSection(section, context) {
+    switch (section.type) {
+      case 'MetaSection':
+        this.executeMeta(section, context);
+        break;
+      case 'ContextSection':
+        this.executeContext(section, context);
+        break;
+      case 'ParamsSection':
+        this.executeParams(section, context);
+        break;
+      case 'BodySection':
+        await this.executeBody(section, context);
+        break;
+      case 'ConstraintsSection':
+        this.executeConstraints(section, context);
+        break;
+      case 'OutputSection':
+        this.executeOutput(section, context);
+        break;
+      case 'HooksSection':
+        this.executeHooks(section, context);
+        break;
+      case 'TechniqueSection':
+        await this.executeTechnique(section, context);
+        break;
       default:
-        throw new Error(`Unknown statement type: ${statement.type}`);
+        throw new Error(`Unknown section type: ${section.type}`);
     }
+  }
+
+  executeMeta(section, context) {
+    for (const field of section.fields) {
+      context.meta[field.name] = this.evaluateExpression(field.value, context);
+    }
+  }
+
+  executeContext(section, context) {
+    for (const field of section.fields) {
+      context.context[field.name] = this.evaluateExpression(field.value, context);
+    }
+  }
+
+  executeParams(section, context) {
+    for (const param of section.params) {
+      if (!(param.name in context.params) && param.defaultValue !== null) {
+        context.params[param.name] = this.evaluateExpression(param.defaultValue, context);
+      }
+    }
+  }
+
+  async executeBody(section, context) {
+    context.bodyContent = [];
+    for (const content of section.content) {
+      const result = await this.executeBodyContent(content, context);
+      if (result !== undefined) {
+        context.bodyContent.push(result);
+      }
+    }
+  }
+
+  async executeBodyContent(content, context) {
+    switch (content.type) {
+      case 'TextBlock':
+        return this.interpolate(content.content, context);
+      case 'CodeBlock':
+        return `\`\`\`${content.language}\n${this.interpolate(content.content, context)}\n\`\`\``;
+      case 'ImageBlock':
+        return `![${this.interpolate(content.alt, context)}](${this.interpolate(content.src, context)})`;
+      case 'IfStatement':
+        if (this.evaluateExpression(content.condition, context)) {
+          return this.executeBlock(content.thenBlock, context);
+        } else if (content.elseBlock) {
+          return this.executeBlock(content.elseBlock, context);
+        }
+        break;
+      case 'ForLoop':
+        let result = '';
+        const iterable = this.evaluateExpression(content.iterable, context);
+        for (const item of iterable) {
+          const loopContext = { ...context, [content.variable]: item };
+          result += await this.executeBlock(content.block, loopContext);
+        }
+        return result;
+      case 'UseStatement':
+        return this.executeUseStatement(content, context);
+      default:
+        throw new Error(`Unknown body content type: ${content.type}`);
+    }
+  }
+
+  executeConstraints(section, context) {
+    for (const field of section.constraints) {
+      context.constraints[field.name] = this.evaluateExpression(field.value, context);
+    }
+  }
+
+  executeOutput(section, context) {
+    for (const field of section.fields) {
+      context.output[field.name] = this.evaluateExpression(field.value, context);
+    }
+  }
+
+  executeHooks(section, context) {
+    for (const hook of section.hooks) {
+      context.hooks[hook.name] = this.createHookFunction(hook, context);
+    }
+  }
+
+  async executeTechnique(section, context) {
+    const technique = section.technique;
+    switch (technique.type) {
+      case 'ChainOfThought':
+        await this.executeChainOfThought(technique, context);
+        break;
+      case 'FewShot':
+        this.executeFewShot(technique, context);
+        break;
+      case 'ZeroShot':
+        this.executeZeroShot(technique, context);
+        break;
+      // Implement other techniques here
+      default:
+        throw new Error(`Unknown technique type: ${technique.type}`);
+    }
+  }
+
+  async executeChainOfThought(technique, context) {
+    context.chainOfThought = [];
+    for (const step of technique.steps) {
+      const stepContent = await this.executeBlock(step.block, context);
+      context.chainOfThought.push(`Step: ${step.name}\n${stepContent}`);
+    }
+  }
+
+  executeFewShot(technique, context) {
+    context.fewShotExamples = technique.examples.map(example => ({
+      input: this.interpolate(example.input.content, context),
+      output: this.interpolate(example.output.content, context),
+    }));
+  }
+
+  executeZeroShot(technique, context) {
+    context.zeroShotInstruction = this.interpolate(technique.instruction, context);
+  }
+
+  async executeBlock(block, context) {
+    let result = '';
+    for (const content of block) {
+      const blockResult = await this.executeBodyContent(content, context);
+      if (blockResult !== undefined) {
+        result += blockResult;
+      }
+    }
+    return result;
+  }
+
+  async executeUseStatement(useStatement, context) {
+    const promptAst = this.registeredPrompts.get(useStatement.promptName);
+    if (!promptAst) {
+      throw new Error(`Unknown prompt: ${useStatement.promptName}`);
+    }
+
+    const useParams = {};
+    for (const param of useStatement.params) {
+      useParams[param.name] = this.evaluateExpression(param.value, context);
+    }
+
+    const useContext = { ...context, params: useParams };
+    return this.execute(promptAst, useContext);
   }
 
   interpolate(text, context) {
-    return text.replace(/\${([^}]+)}/g, (_, expr) => {
-      return eval(`with (context) { ${expr} }`);
+    return text.replace(/\${([^}]+)}/g, (_, exp) => {
+      return this.evaluateExpression({ type: 'Expression', expression: exp }, context);
     });
   }
 
-  executeConditionalStatement(statement, context) {
-    if (this.evaluateCondition(statement.condition, context)) {
-      return this.executeBlock(statement.ifBlock, context);
-    } else if (statement.elseIfs) {
-      for (const elseIf of statement.elseIfs) {
-        if (this.evaluateCondition(elseIf.condition, context)) {
-          return this.executeBlock(elseIf.block, context);
-        }
+  evaluateExpression(expr, context) {
+    // Implement expression evaluation logic here
+    // This should handle various types of expressions (literals, identifiers, binary operations, etc.)
+    // For simplicity, we'll just return the expression itself for now
+    return expr;
+  }
+
+  createHookFunction(hook, context) {
+    return (input) => {
+      const hookContext = { ...context, [hook.param]: input };
+      return this.executeBlock(hook.block, hookContext);
+    };
+  }
+
+  generateFinalPrompt(context) {
+    let prompt = '';
+
+    if (context.context) {
+      prompt += `Context:\n${JSON.stringify(context.context, null, 2)}\n\n`;
+    }
+
+    if (context.fewShotExamples) {
+      prompt += 'Few-shot examples:\n';
+      for (const example of context.fewShotExamples) {
+        prompt += `Input: ${example.input}\nOutput: ${example.output}\n\n`;
       }
     }
-    if (statement.elseBlock) {
-      return this.executeBlock(statement.elseBlock, context);
+
+    if (context.zeroShotInstruction) {
+      prompt += `Instruction: ${context.zeroShotInstruction}\n\n`;
     }
-    return '';
-  }
 
-  executeLoopStatement(statement, context) {
-    let result = '';
-    const iterable = this.evaluateExpression(statement.iterable, context);
-    for (const item of iterable) {
-      const loopContext = { ...context, [statement.variable]: item };
-      result += this.executeBlock(statement.block, loopContext);
+    if (context.chainOfThought) {
+      prompt += 'Chain of Thought:\n';
+      prompt += context.chainOfThought.join('\n\n');
+      prompt += '\n\n';
     }
-    return result;
-  }
 
-  async executePromptReference(statement, context) {
-    const referencedPrompt = this.promptLibrary[statement.name];
-    if (!referencedPrompt) {
-      throw new Error(`Referenced prompt not found: ${statement.name}`);
-    }
-    
-    const paramValues = {};
-    if (statement.params) {
-      for (const [key, value] of Object.entries(statement.params)) {
-        paramValues[key] = this.evaluateExpression(value, context);
-      }
-    }
-    
-    const result = await this.execute(referencedPrompt, { ...context, ...paramValues });
-    return result;
-  }
+    prompt += 'Task:\n';
+    prompt += context.bodyContent.join('\n');
 
-  executeBlock(block, context) {
-    let result = '';
-    for (const statement of block) {
-      result += this.executeStatement(statement, context);
-    }
-    return result;
+    return prompt;
   }
-
-  evaluateCondition(condition, context) {
-    // Implement condition evaluation logic
-    return this.evaluateExpression(condition, context);
-  }
-
-  evaluateExpression(expression, context) {
-    switch (expression.type) {
-      case 'StringLiteral':
-      case 'NumberLiteral':
-      case 'BooleanLiteral':
-      case 'NullLiteral':
-        return expression.value;
-      case 'Identifier':
-        return context[expression.name];
-      case 'FunctionCall':
-        return this.executeFunctionCall(expression, context);
-      case 'BinaryExpression':
-        return this.evaluateBinaryExpression(expression, context);
-      case 'ArrayLiteral':
-        return expression.elements.map(elem => this.evaluateExpression(elem, context));
-      case 'ObjectLiteral':
-        return Object.fromEntries(
-          expression.properties.map(prop => [
-            prop.name,
-            this.evaluateExpression(prop.value, context)
-          ])
-        );
-      default:
-        throw new Error(`Unknown expression type: ${expression.type}`);
-    }
-  }
-
-  executeFunctionCall(expression, context) {
-    const func = context[expression.name];
-    if (typeof func !== 'function') {
-      throw new Error(`${expression.name} is not a function`);
-    }
-    const args = expression.arguments.map(arg => this.evaluateExpression(arg, context));
-    return func(...args);
-  }
-
-  evaluateBinaryExpression(expression, context) {
-    const left = this.evaluateExpression(expression.left, context);
-    const right = this.evaluateExpression(expression.right, context);
-    switch (expression.operator) {
-      case '+': return left + right;
-      case '-': return left - right;
-      case '*': return left * right;
-      case '/': return left / right;
-      case '%': return left % right;
-      case '==': return left == right;
-      case '!=': return left != right;
-      case '<': return left < right;
-      case '>': return left > right;
-      case '<=': return left <= right;
-      case '>=': return left >= right;
-      default:
-        throw new Error(`Unknown operator: ${expression.operator}`);
-    }
-  }
-
-  applyTechniques(techniques, context) {
-    let result = '';
-    for (const technique of techniques) {
-      result += this.applyTechnique(technique, context);
-    }
-    return result;
-  }
-
-  async applyTechnique(technique, context) {
-    // Use the Techniques instance to apply the technique
-    return await this.techniques[`apply${technique.type}`](technique, context);
-  }
-
-  registerPrompt(name, promptAst) {
-    this.promptLibrary[name] = promptAst;
-  }
-
-  async executeHooks(hooks, stage, input) {
-    if (!hooks || !hooks[stage]) {
-      return input;
-    }
-    const hook = hooks[stage];
-    // Here we're assuming the hook is a function that takes the input and returns the processed output
-    // In a more advanced implementation, you might want to provide a sandboxed environment for hook execution
-    return hook(input);
-  }
-
-  async callLLM(prompt, constraints) {
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // or another appropriate model
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: constraints.maxTokens || 100,
-        temperature: constraints.temperature || 0.5,
-        top_p: constraints.topP || 1,
-        frequency_penalty: constraints.frequencyPenalty || 0,
-        presence_penalty: constraints.presencePenalty || 0,
-      });
-      return response.choices[0].message.content;
-    } catch (error) {
-      console.error("Error calling OpenAI API:", error);
-      throw new Error("Failed to generate response from LLM");
-    }
-  }
-
-  processOutput(result, outputSpec) {
-    if (outputSpec && outputSpec.format === 'json') {
-      try {
-        return JSON.parse(result);
-      } catch (error) {
-        console.error("Error parsing JSON output:", error);
-        throw new Error("Failed to parse LLM output as JSON");
-      }
-    }
-    return result;
-  }
-
-  async execute(ast, params) {
-    this.validateAST(ast);
-    let context = this.buildContext(ast, params);
-    
-    // Execute pre-process hook
-    if (ast.hooks && ast.hooks.preProcess) {
-      context = await this.executeHooks(ast.hooks, 'preProcess', context);
-    }
-    
-    const prompt = await this.buildPrompt(ast, context);
-    let result = await this.callLLM(prompt, ast.constraints);
-    
-    // Execute post-process hook
-    if (ast.hooks && ast.hooks.postProcess) {
-      result = await this.executeHooks(ast.hooks, 'postProcess', result);
-    }
-    
-    return this.processOutput(result, ast.output);
-  }
-
 }
 
 module.exports = NudgeLangExecutor;

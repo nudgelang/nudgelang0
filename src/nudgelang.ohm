@@ -1,148 +1,146 @@
 NudgeLang {
-  Program = ImportStatement* PromptDefinition+
-  
-  ImportStatement = "import" (ImportAll | ImportSpecific) "from" stringLiteral ";"
-  ImportAll = "*" "as" identifier
-  ImportSpecific = "{" ListOf<identifier, ","> "}"
-  
-  PromptDefinition = "prompt" identifier ("extends" identifier)? "{" PromptBody "}"
-  
-  PromptBody = MetaSection? ContextSection? ParamsSection BodySection ConstraintsSection? OutputSection? HooksSection? TechniqueSection?
-  
-  MetaSection = "meta" "{" MetaProperty+ "}"
-  MetaProperty = identifier ":" (stringLiteral | numberLiteral) ";"
-  
-  ContextSection = "context" "{" ContextProperty+ "}"
-  ContextProperty = identifier ":" stringLiteral ";"
-  
-  ParamsSection = "params" "{" ParamDefinition+ "}"
-  ParamDefinition = identifier ":" Type ("?" | "[]")? ("=" Expression)? ";"
-  
-  BodySection = "body" "{" (BodyStatement | PromptReference)+ "}"
-  BodyStatement = TextBlock | CodeBlock | ImageBlock | ConditionalStatement | LoopStatement
-  
-  PromptReference = "use" identifier ("with" "{" ListOf<ParamAssignment, ","> "}")? ";"
-  ParamAssignment = identifier ":" Expression
-  
-  ConstraintsSection = "constraints" "{" ConstraintProperty+ "}"
-  ConstraintProperty = identifier ":" (numberLiteral | booleanLiteral) ";"
-  
-  OutputSection = "output" "{" OutputProperty+ "}"
-  OutputProperty = identifier ":" (stringLiteral | SchemaDefinition) ";"
-  
-  HooksSection = "hooks" "{" HookDefinition+ "}"
-  HookDefinition = ("preProcess" | "postProcess") "(" identifier ")" Block
-  
-  TechniqueSection = "technique" "{" TechniqueDefinition+ "}"
-  TechniqueDefinition = ChainOfThoughtTechnique | FewShotTechnique | ZeroShotTechnique | SelfConsistencyTechnique
-                      | TreeOfThoughtsTechnique | ActivePromptingTechnique | ReWOOTechnique | ReActTechnique
-                      | ReflectionTechnique | ExpertPromptingTechnique | APETechnique | AutoCoTTechnique | ARTTechnique
-  
-  ChainOfThoughtTechnique = "chainOfThought" "{" StepBlock+ "}"
-  StepBlock = "step" "(" stringLiteral ")" "{" BodyStatement+ "}"
-  
-  FewShotTechnique = "fewShot" "{" ExampleBlock+ "}"
-  ExampleBlock = "example" "{" "input" ":" TextBlock "output" ":" TextBlock "}"
-  
-  ZeroShotTechnique = "zeroShot" "{" "instruction" ":" stringLiteral "}"
-  
-  SelfConsistencyTechnique = "selfConsistency" "{" 
-    "generations" ":" numberLiteral
-    "selectionStrategy" ":" stringLiteral
-  "}"
-  
-  TreeOfThoughtsTechnique = "treeOfThoughts" "{" 
-    "breadth" ":" numberLiteral
-    "depth" ":" numberLiteral
-    "evaluationStrategy" ":" stringLiteral
-  "}"
-  
-  ActivePromptingTechnique = "activePrompting" "{" 
-    "uncertaintyEstimation" ":" stringLiteral
-    "selectionStrategy" ":" stringLiteral
-    "annotationProcess" ":" stringLiteral
-  "}"
-  
-  ReWOOTechnique = "reWOO" "{" 
-    "planner" ":" Block
-    "worker" ":" Block
-    "solver" ":" Block
-  "}"
-  
-  ReActTechnique = "reAct" "{" 
-    "observation" ":" Block
-    "thought" ":" Block
-    "action" ":" Block
-  "}"
-  
-  ReflectionTechnique = "reflection" "{" 
-    "reflectionPrompt" ":" stringLiteral
-    "memoryBuffer" ":" stringLiteral
-  "}"
-  
-  ExpertPromptingTechnique = "expertPrompting" "{" 
-    "expertIdentity" ":" stringLiteral
-    "expertDescription" ":" TextBlock
-  "}"
-  
-  APETechnique = "ape" "{" 
-    "candidatePool" ":" numberLiteral
-    "scoreFunction" ":" stringLiteral
-  "}"
-  
-  AutoCoTTechnique = "autoCoT" "{" 
-    "clusteringMethod" ":" stringLiteral
-    "representativeSelection" ":" stringLiteral
-  "}"
-  
-  ARTTechnique = "art" "{" 
-    "taskLibrary" ":" stringLiteral
-    "toolLibrary" ":" stringLiteral
-    "decompositionStrategy" ":" stringLiteral
-  "}"
-  
-  TextBlock = "text" "`" AnnotatedText "`" ";"
-  AnnotatedText = (PlainText | Interpolation | Annotation)*
-  PlainText = (~("`" | "${" | "@") any)+
-  Interpolation = "${" Expression "}"
-  Annotation = "@" annotationType "(" ListOf<AnnotationParam, ","> ")" "{" AnnotatedText "}"
-  
-  CodeBlock = "code" "(" Expression ")" ";"
-  ImageBlock = "image" "(" Expression ("," stringLiteral)? ")" ";"
-  
-  ConditionalStatement = "if" "(" Expression ")" Block ("else" "if" "(" Expression ")" Block)* ("else" Block)?
-  LoopStatement = "for" "(" identifier "of" Expression ")" Block
-  
-  Expression = Literal | identifier | FunctionCall | BinaryExpression
-  Literal = stringLiteral | numberLiteral | booleanLiteral | nullLiteral | ArrayLiteral | ObjectLiteral
-  
-  Type = "string" | "number" | "boolean" | "Image" | "any" | ArrayType | ObjectType
+  Program = Prompt*
+  Prompt = "prompt" identifier "{" Section* "}"
+  Section = MetaSection
+          | ContextSection
+          | ParamsSection
+          | BodySection
+          | ConstraintsSection
+          | OutputSection
+          | HooksSection
+          | TechniqueSection
+
+  MetaSection = "meta" "{" MetaField* "}"
+  MetaField = identifier ":" Expression ";"
+
+  ContextSection = "context" "{" ContextField* "}"
+  ContextField = identifier ":" string ";"
+
+  ParamsSection = "params" "{" ParamDeclaration* "}"
+  ParamDeclaration = identifier ":" Type ("=" Expression)? ";"
+  Type = "string" | "number" | "boolean" | ArrayType | OptionalType
   ArrayType = Type "[]"
-  ObjectType = "{" ListOf<ObjectTypeProperty, ","> "}"
-  ObjectTypeProperty = identifier ":" Type
-  
-  SchemaDefinition = "{" ListOf<SchemaProperty, ","> "}"
-  SchemaProperty = identifier ":" (Type | SchemaDefinition)
-  
-  Block = "{" Statement* "}"
-  Statement = BodyStatement | VariableDeclaration | ExpressionStatement
-  VariableDeclaration = "let" identifier (":" Type)? "=" Expression ";"
+  OptionalType = Type "?"
+
+  BodySection = "body" "{" BodyContent* "}"
+  BodyContent = TextBlock
+               | CodeBlock
+               | ImageBlock
+               | ControlStructure
+               | UseStatement
+               | ExpressionStatement
+
+  TextBlock = "text" BacktickString ";"
+  BacktickString = "`" BacktickContent* "`"
+  BacktickContent = (InterpolationContent | ~"`" any)+
+  InterpolationContent = "${" Expression "}"
+
+  CodeBlock = "code" "(" Language BacktickString ")" ";"
+  Language = identifier
+
+  ImageBlock = "image" "(" string "," string ")" ";"
+
+  ControlStructure = IfStatement | ForLoop
+  IfStatement = "if" "(" Expression ")" Block ("else" Block)?
+  ForLoop = "for" "(" identifier "of" Expression ")" Block
+  Block = "{" BodyContent* "}"
+
+  UseStatement = "use" identifier "with" "{" ParamAssignment* "}" ";"
+  ParamAssignment = identifier ":" Expression ","?
+
   ExpressionStatement = Expression ";"
-  
-  FunctionCall = identifier "(" ListOf<Expression, ","> ")"
-  BinaryExpression = Expression binaryOperator Expression
-  
-  annotationType = "emphasis" | "context" | "instruction" | "example" | "definition"
-  AnnotationParam = identifier ":" Expression
-  
-  binaryOperator = "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">="
-  
-  identifier = letter (alnum | "_")*
-  stringLiteral = "\"" (~"\"" any)* "\""
-  numberLiteral = digit+ ("." digit+)?
-  booleanLiteral = "true" | "false"
-  nullLiteral = "null"
+
+  ConstraintsSection = "constraints" "{" ConstraintField* "}"
+  ConstraintField = identifier ":" Expression ";"
+
+  OutputSection = "output" "{" OutputField* "}"
+  OutputField = identifier ":" Expression ";"
+
+  HooksSection = "hooks" "{" HookDefinition* "}"
+  HookDefinition = identifier "(" identifier ")" Block
+
+  TechniqueSection = "technique" "{" TechniqueDefinition* "}"
+  TechniqueDefinition = ChainOfThought
+                      | FewShot
+                      | ZeroShot
+                      | SelfConsistency
+                      | TreeOfThoughts
+                      | ActivePrompting
+                      | ReWOO
+                      | ReAct
+                      | Reflection
+                      | ExpertPrompting
+                      | APE
+                      | AutoCoT
+                      | ART
+
+  ChainOfThought = "chainOfThought" "{" ChainOfThoughtStep* "}"
+  ChainOfThoughtStep = "step" "(" string ")" Block
+
+  FewShot = "fewShot" "{" FewShotExample* "}"
+  FewShotExample = "example" "{" "input" ":" TextBlock "output" ":" TextBlock "}"
+
+  ZeroShot = "zeroShot" "{" TechniqueField* "}"
+  SelfConsistency = "selfConsistency" "{" TechniqueField* "}"
+  TreeOfThoughts = "treeOfThoughts" "{" TechniqueField* "}"
+  ActivePrompting = "activePrompting" "{" TechniqueField* "}"
+  ReWOO = "reWOO" "{" ReWOOComponent* "}"
+  ReWOOComponent = identifier "{" TextBlock "}"
+  ReAct = "reAct" "{" ReActComponent* "}"
+  ReActComponent = identifier "{" TextBlock "}"
+  Reflection = "reflection" "{" TechniqueField* "}"
+  ExpertPrompting = "expertPrompting" "{" TechniqueField* "}"
+  APE = "ape" "{" TechniqueField* "}"
+  AutoCoT = "autoCoT" "{" TechniqueField* "}"
+  ART = "art" "{" TechniqueField* "}"
+
+  TechniqueField = identifier ":" Expression ";"
+
+  Expression = BinaryExpression
+             | UnaryExpression
+             | MemberExpression
+             | CallExpression
+             | Literal
+             | identifier
+             | ParenExpression
+             | ObjectLiteral
+             | ArrayLiteral
+
+  BinaryExpression = Expression BinaryOperator Expression
+  BinaryOperator = "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||"
+
+  UnaryExpression = UnaryOperator Expression
+  UnaryOperator = "!" | "-"
+
+  MemberExpression = PrimaryExpression ("." identifier)*
+  PrimaryExpression = CallExpression
+                    | identifier
+                    | Literal
+                    | ParenExpression
+                    | ObjectLiteral
+                    | ArrayLiteral
+
+  CallExpression = MemberExpression Arguments
+  Arguments = "(" ListOf<Expression, ","> ")"
+
+  ParenExpression = "(" Expression ")"
+
+  ObjectLiteral = "{" ListOf<PropertyAssignment, ","> "}"
+  PropertyAssignment = (identifier | string) ":" Expression
+
   ArrayLiteral = "[" ListOf<Expression, ","> "]"
-  ObjectLiteral = "{" ListOf<ObjectLiteralProperty, ","> "}"
-  ObjectLiteralProperty = identifier ":" Expression
+
+  Literal = number | string | "true" | "false" | "null"
+
+  identifier = ~keyword (letter | "_") (alnum | "_")*
+  keyword = "prompt" | "meta" | "context" | "params" | "body" | "constraints" | "output" | "hooks" | "technique"
+          | "if" | "else" | "for" | "of" | "use" | "with" | "true" | "false" | "null"
+
+  number = digit+ ("." digit+)?
+  string = "\"" (~"\"" any)* "\""
+
+  space += comment
+  comment = lineComment | blockComment
+  lineComment = "//" (~"\n" any)* "\n"
+  blockComment = "/*" (~"*/" any)* "*/"
 }

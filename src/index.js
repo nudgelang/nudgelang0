@@ -1,19 +1,10 @@
-const { parseNudgeLang } = require('./parser');
+// index.js
+const NudgeLangParser = require('./parser');
 const NudgeLangExecutor = require('./executor');
+const { createProvider } = require('./provider');
 
-function createNudgeLang(openai) {
-  const executor = new NudgeLangExecutor(openai);
-
-  return {
-    parsePrompt: parseNudgeLang,
-    executePrompt: async (ast, params) => {
-      if (typeof ast === 'string') {
-        ast = parseNudgeLang(ast);
-      }
-      return executor.execute(ast, params);
-    },
-    Executor: NudgeLangExecutor
-  };
-}
-
-module.exports = createNudgeLang;
+module.exports = {
+  NudgeLangParser,
+  NudgeLangExecutor,
+  createProvider,
+};
