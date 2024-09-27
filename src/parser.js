@@ -5,8 +5,7 @@ const path = require('path');
 
 class NudgeLangParser {
   constructor() {
-    const grammarFile = path.join(__dirname, 'nudgelang.ohm');
-    const grammarContent = fs.readFileSync(grammarFile, 'utf-8');
+    const grammarContent = fs.readFileSync(path.join(__dirname, 'nudgelang.ohm'), 'utf-8');
     this.grammar = ohm.grammar(grammarContent);
     this.semantics = this.grammar.createSemantics();
     this.defineSemantics();
@@ -62,22 +61,24 @@ class NudgeLangParser {
           params: declarations.toAST(),
         };
       },
-      ParamDeclaration(name, _colon, paramType, _equals, defaultValue, _semicolon) {
+      ParamDeclaration(name, _colon, paramType, eq, expr, _semicolon) {
+        const hasDefaultValue = eq.numChildren > 0;
         return {
           type: 'ParamDeclaration',
           name: name.sourceString,
           paramType: paramType.toAST(),
-          defaultValue: defaultValue.toAST()[0] || null,
+          defaultValue: hasDefaultValue ? expr.toAST() : null,
         };
       },
-      Type(type) {
-        return type.sourceString;
-      },
-      ArrayType(baseType, _brackets) {
-        return `${baseType.toAST()}[]`;
-      },
-      OptionalType(baseType, _question) {
-        return `${baseType.toAST()}?`;
+      Type(baseType, arrayModifier, optionalModifier) {
+        let type = baseType.sourceString;
+        if (arrayModifier.children.length > 0) {
+          type += '[]';
+        }
+        if (optionalModifier.children.length > 0) {
+          type += '?';
+        }
+        return type;
       },
       BodySection(_body, _open, content, _close) {
         return {
@@ -94,26 +95,42 @@ class NudgeLangParser {
           content: content.toAST(),
         };
       },
-      BacktickString(_open, content, _close) {
-        return content.toAST();
+      BacktickString(_open, elements, _close) {
+        return elements.toAST();
       },
-      BacktickContent(_content) {
+      BacktickElement(element) {
+        return element.toAST();
+      },
+      BacktickElement_interpolation(interp) {
+        return interp.toAST();
+      },
+      BacktickElement_text(chars) {
+        // Concatenate the text characters into a single string
+        return chars.toAST();
+      },
+      TextChars(chars) {
+        return chars.children.map(c => c.toAST()).join('');
+      },
+      TextChar_normal(chars) {
         return this.sourceString;
       },
-      Interpolation(_open, expr, _close) {
+      TextChar_dollar(dollar, chars) {
+        return this.sourceString;
+      },
+      InterpolationContent(_open, expr, _close) {
         return {
           type: 'Interpolation',
           expression: expr.toAST(),
         };
       },
-      CodeBlock(_code, _open, language, content, _close, _semicolon) {
+      CodeBlock(_code, _openParen, language, content, _closeParen, _semicolon) {
         return {
           type: 'CodeBlock',
           language: language.sourceString,
           content: content.toAST(),
         };
       },
-      ImageBlock(_image, _open, src, _comma, alt, _close, _semicolon) {
+      ImageBlock(_image, _openParen, src, _comma, alt, _closeParen, _semicolon) {
         return {
           type: 'ImageBlock',
           src: src.toAST(),
@@ -123,15 +140,16 @@ class NudgeLangParser {
       ControlStructure(structure) {
         return structure.toAST();
       },
-      IfStatement(_if, _open, condition, _close, thenBlock, _else, elseBlock) {
+      IfStatement(_if, _openParen, condition, _closeParen, thenBlock, elseKeyword, elseBlock) {
+        const hasElseClause = elseKeyword.numChildren > 0;
         return {
           type: 'IfStatement',
           condition: condition.toAST(),
           thenBlock: thenBlock.toAST(),
-          elseBlock: elseBlock.toAST()[0] || null,
+          elseBlock: hasElseClause ? elseBlock.toAST() : null,
         };
       },
-      ForLoop(_for, _open, variable, _of, iterable, _close, block) {
+      ForLoop(_for, _openParen, variable, _of, iterable, _closeParen, block) {
         return {
           type: 'ForLoop',
           variable: variable.sourceString,
@@ -142,11 +160,16 @@ class NudgeLangParser {
       Block(_open, content, _close) {
         return content.toAST();
       },
-      UseStatement(_use, promptName, _with, _open, params, _close, _semicolon) {
+      UseStatement(_use, promptName, withKeyword, openBrace, paramAssignments, closeBrace, _semicolon) {
+        const hasWithClause = withKeyword.numChildren > 0;
+        let params = [];
+        if (hasWithClause) {
+          params = paramAssignments.toAST();
+        }
         return {
           type: 'UseStatement',
           promptName: promptName.sourceString,
-          params: params.toAST(),
+          params: params,
         };
       },
       ParamAssignment(name, _colon, value, _comma) {
@@ -194,7 +217,7 @@ class NudgeLangParser {
           hooks: definitions.toAST(),
         };
       },
-      HookDefinition(name, _open, param, _close, block) {
+      HookDefinition(name, _openParen, param, _closeParen, block) {
         return {
           type: 'HookDefinition',
           name: name.sourceString,
@@ -217,10 +240,10 @@ class NudgeLangParser {
           steps: steps.toAST(),
         };
       },
-      ChainOfThoughtStep(_step, _open, name, _close, block) {
+      ChainOfThoughtStep(_step, _openParen, name, _closeParen, block) {
         return {
           type: 'ChainOfThoughtStep',
-          name: name.toAST(),
+          name: name.sourceString,
           block: block.toAST(),
         };
       },
@@ -230,7 +253,7 @@ class NudgeLangParser {
           examples: examples.toAST(),
         };
       },
-      FewShotExample(_example, _open, _input, _colon1, input, _output, _colon2, output, _close) {
+      FewShotExample(_example, _open, _input, _colon1, input, _semicolon1, _output, _colon2, output, _semicolon2, _close) {
         return {
           type: 'FewShotExample',
           input: input.toAST(),
@@ -267,11 +290,11 @@ class NudgeLangParser {
           components: components.toAST(),
         };
       },
-      ReWOOComponent(name, _open, content, _close) {
+      ReWOOComponent(name, block) {
         return {
           type: 'ReWOOComponent',
           name: name.sourceString,
-          content: content.toAST(),
+          block: block.toAST(),
         };
       },
       ReAct(_react, _open, components, _close) {
@@ -280,11 +303,11 @@ class NudgeLangParser {
           components: components.toAST(),
         };
       },
-      ReActComponent(name, _open, content, _close) {
+      ReActComponent(name, block) {
         return {
           type: 'ReActComponent',
           name: name.sourceString,
-          content: content.toAST(),
+          block: block.toAST(),
         };
       },
       Reflection(_reflection, _open, fields, _close) {
@@ -324,10 +347,27 @@ class NudgeLangParser {
           value: value.toAST(),
         };
       },
+      // Expression Rules
       Expression(expr) {
         return expr.toAST();
       },
-      BinaryExpression_binary(left, op, right) {
+      LogicalOrExpression_or(left, _op, right) {
+        return {
+          type: 'LogicalExpression',
+          operator: '||',
+          left: left.toAST(),
+          right: right.toAST(),
+        };
+      },
+      LogicalAndExpression_and(left, _op, right) {
+        return {
+          type: 'LogicalExpression',
+          operator: '&&',
+          left: left.toAST(),
+          right: right.toAST(),
+        };
+      },
+      EqualityExpression_eq(left, op, right) {
         return {
           type: 'BinaryExpression',
           operator: op.sourceString,
@@ -335,78 +375,52 @@ class NudgeLangParser {
           right: right.toAST(),
         };
       },
-      BinaryExpression_comparison(expr) {
-        return expr.toAST();
-      },
-      ComparisonExpression(left, op, right) {
+      RelationalExpression_rel(left, op, right) {
         return {
-          type: 'ComparisonExpression',
+          type: 'BinaryExpression',
           operator: op.sourceString,
           left: left.toAST(),
           right: right.toAST(),
         };
       },
-      UnaryExpression(op, expr) {
+      AdditiveExpression_add(left, op, right) {
+        return {
+          type: 'BinaryExpression',
+          operator: op.sourceString,
+          left: left.toAST(),
+          right: right.toAST(),
+        };
+      },
+      MultiplicativeExpression_mul(left, op, right) {
+        return {
+          type: 'BinaryExpression',
+          operator: op.sourceString,
+          left: left.toAST(),
+          right: right.toAST(),
+        };
+      },
+      UnaryExpression_unary(op, expr) {
         return {
           type: 'UnaryExpression',
           operator: op.sourceString,
-          expression: expr.toAST(),
+          argument: expr.toAST(),
         };
       },
-      CallExpression(callee, _open, args, _close) {
-        return {
-          type: 'CallExpression',
-          callee: callee.toAST(),
-          arguments: args.asIteration().toAST(),
-        };
-      },
-      MemberExpression(object, _dots, properties) {
+      MemberExpression_member(object, _dot, property) {
         return {
           type: 'MemberExpression',
           object: object.toAST(),
-          properties: properties.asIteration().sourceString,
+          property: property.sourceString,
         };
+      },
+      MemberExpression(expr) {
+        return expr.toAST();
       },
       PrimaryExpression(expr) {
         return expr.toAST();
       },
       ParenExpression(_open, expr, _close) {
         return expr.toAST();
-      },
-      ObjectLiteral(_open, properties, _close) {
-        return {
-          type: 'ObjectLiteral',
-          properties: properties.asIteration().toAST(),
-        };
-      },
-      PropertyAssignment(key, _colon, value) {
-        return {
-          type: 'PropertyAssignment',
-          key: key.toAST(),
-          value: value.toAST(),
-        };
-      },
-      ArrayLiteral(_open, elements, _close) {
-        return {
-          type: 'ArrayLiteral',
-          elements: elements.asIteration().toAST(),
-        };
-      },
-      Literal(value) {
-        const sourceString = this.sourceString;
-        if (sourceString === 'true' || sourceString === 'false') {
-          return {
-            type: 'BooleanLiteral',
-            value: sourceString === 'true',
-          };
-        } else if (sourceString === 'null') {
-          return {
-            type: 'NullLiteral',
-            value: null,
-          };
-        } else {
-          return value.toAST();
-        }
       },
       identifier(_first, _rest) {
         return {
@@ -420,10 +434,47 @@ class NudgeLangParser {
           value: parseFloat(this.sourceString),
         };
       },
-      string(_open, _content, _close) {
+      string(_open, chars, _close) {
         return {
           type: 'StringLiteral',
-          value: this.sourceString.slice(1, -1), // Remove quotes
+          value: chars.sourceString,
+        };
+      },
+      trueLiteral(_true) {
+        return {
+          type: 'BooleanLiteral',
+          value: true,
+        };
+      },
+      falseLiteral(_false) {
+        return {
+          type: 'BooleanLiteral',
+          value: false,
+        };
+      },
+      nullLiteral(_null) {
+        return {
+          type: 'NullLiteral',
+          value: null,
+        };
+      },
+      ObjectLiteral(_open, properties, _close) {
+        return {
+          type: 'ObjectLiteral',
+          properties: properties.asIteration().toAST(),
+        };
+      },
+      PropertyAssignment(key, _colon, value) {
+        return {
+          type: 'PropertyAssignment',
+          key: key.sourceString,
+          value: value.toAST(),
+        };
+      },
+      ArrayLiteral(_open, elements, _close) {
+        return {
+          type: 'ArrayLiteral',
+          elements: elements.asIteration().toAST(),
         };
       },
       _iter(...children) {

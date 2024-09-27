@@ -18,25 +18,33 @@ NudgeLang {
 
   ParamsSection = "params" "{" ParamDeclaration* "}"
   ParamDeclaration = identifier ":" Type ("=" Expression)? ";"
-  Type = "string" | "number" | "boolean" | ArrayType | OptionalType
-  ArrayType = Type "[]"
-  OptionalType = Type "?"
+  Type = BaseType ArrayModifier? OptionalModifier?
+  BaseType = "string" | "number" | "boolean"
+  ArrayModifier = "[]"
+  OptionalModifier = "?"
 
   BodySection = "body" "{" BodyContent* "}"
-  BodyContent = TextBlock
+  BodyContent = ControlStructure
+               | TextBlock
                | CodeBlock
                | ImageBlock
-               | ControlStructure
                | UseStatement
                | ExpressionStatement
 
   TextBlock = "text" BacktickString ";"
-  BacktickString = "`" BacktickContent* "`"
-  BacktickContent = (InterpolationContent | ~"`" any)+
+  BacktickString = "`" BacktickElement* "`"
+  BacktickElement = InterpolationContent  -- interpolation
+                  | TextChars             -- text
+
+  TextChars = TextChar+
+
+  TextChar
+    = (~("`" | "$") any)+              -- normal
+    | "$" (~"{" any)+                  -- dollar
+
   InterpolationContent = "${" Expression "}"
 
-  CodeBlock = "code" "(" Language BacktickString ")" ";"
-  Language = identifier
+  CodeBlock = "code" "(" identifier BacktickString ")" ";"
 
   ImageBlock = "image" "(" string "," string ")" ";"
 
@@ -45,7 +53,7 @@ NudgeLang {
   ForLoop = "for" "(" identifier "of" Expression ")" Block
   Block = "{" BodyContent* "}"
 
-  UseStatement = "use" identifier "with" "{" ParamAssignment* "}" ";"
+  UseStatement = "use" identifier ("with" "{" ParamAssignment* "}")? ";"
   ParamAssignment = identifier ":" Expression ","?
 
   ExpressionStatement = Expression ";"
@@ -78,16 +86,16 @@ NudgeLang {
   ChainOfThoughtStep = "step" "(" string ")" Block
 
   FewShot = "fewShot" "{" FewShotExample* "}"
-  FewShotExample = "example" "{" "input" ":" TextBlock "output" ":" TextBlock "}"
+  FewShotExample = "example" "{" "input" ":" TextBlock ";" "output" ":" TextBlock ";" "}"
 
   ZeroShot = "zeroShot" "{" TechniqueField* "}"
   SelfConsistency = "selfConsistency" "{" TechniqueField* "}"
   TreeOfThoughts = "treeOfThoughts" "{" TechniqueField* "}"
   ActivePrompting = "activePrompting" "{" TechniqueField* "}"
   ReWOO = "reWOO" "{" ReWOOComponent* "}"
-  ReWOOComponent = identifier "{" TextBlock "}"
+  ReWOOComponent = identifier Block
   ReAct = "reAct" "{" ReActComponent* "}"
-  ReActComponent = identifier "{" TextBlock "}"
+  ReActComponent = identifier Block
   Reflection = "reflection" "{" TechniqueField* "}"
   ExpertPrompting = "expertPrompting" "{" TechniqueField* "}"
   APE = "ape" "{" TechniqueField* "}"
@@ -96,32 +104,46 @@ NudgeLang {
 
   TechniqueField = identifier ":" Expression ";"
 
-  Expression = BinaryExpression
-             | UnaryExpression
-             | MemberExpression
-             | CallExpression
-             | Literal
-             | identifier
-             | ParenExpression
-             | ObjectLiteral
-             | ArrayLiteral
+  Expression = LogicalOrExpression
 
-  BinaryExpression = Expression BinaryOperator Expression
-  BinaryOperator = "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||"
+  LogicalOrExpression
+    = LogicalOrExpression "||" LogicalAndExpression  -- or
+    | LogicalAndExpression
 
-  UnaryExpression = UnaryOperator Expression
-  UnaryOperator = "!" | "-"
+  LogicalAndExpression
+    = LogicalAndExpression "&&" EqualityExpression  -- and
+    | EqualityExpression
 
-  MemberExpression = PrimaryExpression ("." identifier)*
-  PrimaryExpression = CallExpression
-                    | identifier
-                    | Literal
-                    | ParenExpression
-                    | ObjectLiteral
-                    | ArrayLiteral
+  EqualityExpression
+    = EqualityExpression ("==" | "!=") RelationalExpression  -- eq
+    | RelationalExpression
 
-  CallExpression = MemberExpression Arguments
-  Arguments = "(" ListOf<Expression, ","> ")"
+  RelationalExpression
+    = RelationalExpression ("<" | ">" | "<=" | ">=") AdditiveExpression  -- rel
+    | AdditiveExpression
+
+  AdditiveExpression
+    = AdditiveExpression ("+" | "-") MultiplicativeExpression  -- add
+    | MultiplicativeExpression
+
+  MultiplicativeExpression
+    = MultiplicativeExpression ("*" | "/" | "%") UnaryExpression  -- mul
+    | UnaryExpression
+
+  UnaryExpression
+    = ("!" | "-") UnaryExpression  -- unary
+    | MemberExpression
+
+  MemberExpression
+    = MemberExpression "." identifier  -- member
+    | PrimaryExpression
+
+  PrimaryExpression
+    = identifier
+    | Literal
+    | ParenExpression
+    | ObjectLiteral
+    | ArrayLiteral
 
   ParenExpression = "(" Expression ")"
 
@@ -130,11 +152,16 @@ NudgeLang {
 
   ArrayLiteral = "[" ListOf<Expression, ","> "]"
 
-  Literal = number | string | "true" | "false" | "null"
+  Literal = number | string | trueLiteral | falseLiteral | nullLiteral
 
+  trueLiteral = "true"
+  falseLiteral = "false"
+  nullLiteral = "null"
+  
   identifier = ~keyword (letter | "_") (alnum | "_")*
-  keyword = "prompt" | "meta" | "context" | "params" | "body" | "constraints" | "output" | "hooks" | "technique"
-          | "if" | "else" | "for" | "of" | "use" | "with" | "true" | "false" | "null"
+  keyword = ("prompt" | "meta" | "context" | "params" | "body" | "constraints" | "output" | "hooks" | "technique"
+            | "if" | "else" | "for" | "of" | "use" | "with" | "true" | "false" | "null" | "text" | "code" | "image"
+            | "let" | "reflection" | "expertPrompting" | "format" | "step" | "example") ~alnum
 
   number = digit+ ("." digit+)?
   string = "\"" (~"\"" any)* "\""
