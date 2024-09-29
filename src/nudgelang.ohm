@@ -34,14 +34,8 @@ NudgeLang {
   TextBlock = "text" BacktickString ";"
   BacktickString = "`" BacktickElement* "`"
   BacktickElement = InterpolationContent  -- interpolation
-                  | TextChars             -- text
-
-  TextChars = TextChar+
-
-  TextChar
-    = (~("`" | "$") any)+              -- normal
-    | "$" (~"{" any)+                  -- dollar
-
+                  | TextContent           -- text
+  TextContent = (~("`" | "${") any)+
   InterpolationContent = "${" Expression "}"
 
   CodeBlock = "code" "(" identifier BacktickString ")" ";"
@@ -49,11 +43,13 @@ NudgeLang {
   ImageBlock = "image" "(" string "," string ")" ";"
 
   ControlStructure = IfStatement | ForLoop
-  IfStatement = "if" "(" Expression ")" Block ("else" Block)?
+  IfStatement = "if" "(" Expression ")" Block ElseClause?
+  ElseClause = "else" Block
   ForLoop = "for" "(" identifier "of" Expression ")" Block
   Block = "{" BodyContent* "}"
 
-  UseStatement = "use" identifier ("with" "{" ParamAssignment* "}")? ";"
+  UseStatement = "use" identifier WithClause? ";"
+  WithClause = "with" "{" ParamAssignment* "}"
   ParamAssignment = identifier ":" Expression ","?
 
   ExpressionStatement = Expression ";"
@@ -65,7 +61,10 @@ NudgeLang {
   OutputField = identifier ":" Expression ";"
 
   HooksSection = "hooks" "{" HookDefinition* "}"
-  HookDefinition = identifier "(" identifier ")" Block
+  HookDefinition = identifier "(" identifier ")" "{" Statement* "}"
+  Statement = ReturnStatement | AssignmentStatement | ExpressionStatement
+  ReturnStatement = "return" Expression ";"
+  AssignmentStatement = Expression "=" Expression ";"
 
   TechniqueSection = "technique" "{" TechniqueDefinition* "}"
   TechniqueDefinition = ChainOfThought
@@ -86,7 +85,7 @@ NudgeLang {
   ChainOfThoughtStep = "step" "(" string ")" Block
 
   FewShot = "fewShot" "{" FewShotExample* "}"
-  FewShotExample = "example" "{" "input" ":" TextBlock ";" "output" ":" TextBlock ";" "}"
+  FewShotExample = "example" "{" "input" ":" TextBlock "output" ":" TextBlock "}"
 
   ZeroShot = "zeroShot" "{" TechniqueField* "}"
   SelfConsistency = "selfConsistency" "{" TechniqueField* "}"
@@ -104,70 +103,70 @@ NudgeLang {
 
   TechniqueField = identifier ":" Expression ";"
 
-  Expression = LogicalOrExpression
+  Expression = LogicalExpression
 
-  LogicalOrExpression
-    = LogicalOrExpression "||" LogicalAndExpression  -- or
-    | LogicalAndExpression
+  LogicalExpression
+    = LogicalExpression LogicalOperator ComparisonExpression  -- binary
+    | ComparisonExpression
 
-  LogicalAndExpression
-    = LogicalAndExpression "&&" EqualityExpression  -- and
-    | EqualityExpression
-
-  EqualityExpression
-    = EqualityExpression ("==" | "!=") RelationalExpression  -- eq
-    | RelationalExpression
-
-  RelationalExpression
-    = RelationalExpression ("<" | ">" | "<=" | ">=") AdditiveExpression  -- rel
+  ComparisonExpression
+    = ComparisonExpression ComparisonOperator AdditiveExpression  -- binary
     | AdditiveExpression
 
   AdditiveExpression
-    = AdditiveExpression ("+" | "-") MultiplicativeExpression  -- add
+    = AdditiveExpression AdditiveOperator MultiplicativeExpression  -- binary
     | MultiplicativeExpression
 
   MultiplicativeExpression
-    = MultiplicativeExpression ("*" | "/" | "%") UnaryExpression  -- mul
+    = MultiplicativeExpression MultiplicativeOperator UnaryExpression  -- binary
     | UnaryExpression
 
   UnaryExpression
-    = ("!" | "-") UnaryExpression  -- unary
+    = PrefixOperator UnaryExpression  -- prefix
     | MemberExpression
 
   MemberExpression
-    = MemberExpression "." identifier  -- member
+    = MemberExpression "." identifier  -- dot
+    | MemberExpression "[" Expression "]"  -- bracket
+    | MemberExpression Arguments  -- call
     | PrimaryExpression
 
+  Arguments = "(" ListOf<Expression, ","> ")"
+
   PrimaryExpression
-    = identifier
-    | Literal
-    | ParenExpression
+    = "(" Expression ")"  -- paren
+    | number
+    | string
+    | trueLiteral
+    | falseLiteral
+    | nullLiteral
     | ObjectLiteral
     | ArrayLiteral
-
-  ParenExpression = "(" Expression ")"
+    | identifier
 
   ObjectLiteral = "{" ListOf<PropertyAssignment, ","> "}"
   PropertyAssignment = (identifier | string) ":" Expression
 
   ArrayLiteral = "[" ListOf<Expression, ","> "]"
 
-  Literal = number | string | trueLiteral | falseLiteral | nullLiteral
+  LogicalOperator = "&&" | "||"
+  ComparisonOperator = "==" | "!=" | ">=" | "<=" | ">" | "<"
+  AdditiveOperator = "+" | "-"
+  MultiplicativeOperator = "*" | "/" | "%"
+  PrefixOperator = "!" | "-"
 
   trueLiteral = "true"
   falseLiteral = "false"
   nullLiteral = "null"
-  
+
   identifier = ~keyword (letter | "_") (alnum | "_")*
-  keyword = ("prompt" | "meta" | "context" | "params" | "body" | "constraints" | "output" | "hooks" | "technique"
-            | "if" | "else" | "for" | "of" | "use" | "with" | "true" | "false" | "null" | "text" | "code" | "image"
-            | "let" | "reflection" | "expertPrompting" | "format" | "step" | "example") ~alnum
+  keyword = ("if" | "else" | "for" | "of" | "use" | "with" | "true" | "false" | "null" | "let") ~alnum
 
   number = digit+ ("." digit+)?
   string = "\"" (~"\"" any)* "\""
 
   space += comment
   comment = lineComment | blockComment
-  lineComment = "//" (~"\n" any)* "\n"
+  lineComment = "//" (~"\n" any)* ("\n" | end)
   blockComment = "/*" (~"*/" any)* "*/"
 }

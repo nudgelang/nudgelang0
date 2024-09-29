@@ -61,13 +61,12 @@ class NudgeLangParser {
           params: declarations.toAST(),
         };
       },
-      ParamDeclaration(name, _colon, paramType, eq, expr, _semicolon) {
-        const hasDefaultValue = eq.numChildren > 0;
+      ParamDeclaration(name, _colon, paramType, _eq, defaultValue, _semicolon) {
         return {
           type: 'ParamDeclaration',
           name: name.sourceString,
           paramType: paramType.toAST(),
-          defaultValue: hasDefaultValue ? expr.toAST() : null,
+          defaultValue: defaultValue.children.length > 0 ? defaultValue.toAST() : null,
         };
       },
       Type(baseType, arrayModifier, optionalModifier) {
@@ -92,30 +91,24 @@ class NudgeLangParser {
       TextBlock(_text, content, _semicolon) {
         return {
           type: 'TextBlock',
-          content: content.toAST(),
+          content: content.toAST().filter(item => item !== ''),
         };
       },
       BacktickString(_open, elements, _close) {
-        return elements.toAST();
-      },
-      BacktickElement(element) {
-        return element.toAST();
+        return elements.toAST().reduce((acc, curr) => {
+          if (typeof curr === 'string' && typeof acc[acc.length - 1] === 'string') {
+            acc[acc.length - 1] += curr;
+          } else {
+            acc.push(curr);
+          }
+          return acc;
+        }, []);
       },
       BacktickElement_interpolation(interp) {
         return interp.toAST();
       },
-      BacktickElement_text(chars) {
-        // Concatenate the text characters into a single string
-        return chars.toAST();
-      },
-      TextChars(chars) {
-        return chars.children.map(c => c.toAST()).join('');
-      },
-      TextChar_normal(chars) {
-        return this.sourceString;
-      },
-      TextChar_dollar(dollar, chars) {
-        return this.sourceString;
+      BacktickElement_text(content) {
+        return content.sourceString;
       },
       InterpolationContent(_open, expr, _close) {
         return {
@@ -140,14 +133,16 @@ class NudgeLangParser {
       ControlStructure(structure) {
         return structure.toAST();
       },
-      IfStatement(_if, _openParen, condition, _closeParen, thenBlock, elseKeyword, elseBlock) {
-        const hasElseClause = elseKeyword.numChildren > 0;
+      IfStatement(_if, _openParen, condition, _closeParen, thenBlock, elseClause) {
         return {
           type: 'IfStatement',
           condition: condition.toAST(),
           thenBlock: thenBlock.toAST(),
-          elseBlock: hasElseClause ? elseBlock.toAST() : null,
+          elseBlock: elseClause.children.length > 0 ? elseClause.toAST()[0] : null,
         };
+      },
+      ElseClause(_else, block) {
+        return block.toAST();
       },
       ForLoop(_for, _openParen, variable, _of, iterable, _closeParen, block) {
         return {
@@ -160,17 +155,15 @@ class NudgeLangParser {
       Block(_open, content, _close) {
         return content.toAST();
       },
-      UseStatement(_use, promptName, withKeyword, openBrace, paramAssignments, closeBrace, _semicolon) {
-        const hasWithClause = withKeyword.numChildren > 0;
-        let params = [];
-        if (hasWithClause) {
-          params = paramAssignments.toAST();
-        }
+      UseStatement(_use, promptName, withClause, _semicolon) {
         return {
           type: 'UseStatement',
           promptName: promptName.sourceString,
-          params: params,
+          params: withClause.children.length > 0 ? withClause.toAST()[0] : [],
         };
+      },
+      WithClause(_with, _open, assignments, _close) {
+        return assignments.toAST();
       },
       ParamAssignment(name, _colon, value, _comma) {
         return {
@@ -217,12 +210,28 @@ class NudgeLangParser {
           hooks: definitions.toAST(),
         };
       },
-      HookDefinition(name, _openParen, param, _closeParen, block) {
+      HookDefinition(name, _open, param, _close, _openBrace, statements, _closeBrace) {
         return {
           type: 'HookDefinition',
           name: name.sourceString,
           param: param.sourceString,
-          block: block.toAST(),
+          body: statements.toAST(),
+        };
+      },
+      Statement(stmt) {
+        return stmt.toAST();
+      },
+      ReturnStatement(_return, expr, _semi) {
+        return {
+          type: 'ReturnStatement',
+          argument: expr.toAST(),
+        };
+      },
+      AssignmentStatement(left, _eq, right, _semi) {
+        return {
+          type: 'AssignmentStatement',
+          left: left.toAST(),
+          right: right.toAST(),
         };
       },
       TechniqueSection(_technique, _open, definitions, _close) {
@@ -253,7 +262,7 @@ class NudgeLangParser {
           examples: examples.toAST(),
         };
       },
-      FewShotExample(_example, _open, _input, _colon1, input, _semicolon1, _output, _colon2, output, _semicolon2, _close) {
+      FewShotExample(_example, _open, _input, _colon1, input, _output, _colon2, output, _close) {
         return {
           type: 'FewShotExample',
           input: input.toAST(),
@@ -347,27 +356,18 @@ class NudgeLangParser {
           value: value.toAST(),
         };
       },
-      // Expression Rules
       Expression(expr) {
         return expr.toAST();
       },
-      LogicalOrExpression_or(left, _op, right) {
+      LogicalExpression_binary(left, op, right) {
         return {
           type: 'LogicalExpression',
-          operator: '||',
+          operator: op.sourceString,
           left: left.toAST(),
           right: right.toAST(),
         };
       },
-      LogicalAndExpression_and(left, _op, right) {
-        return {
-          type: 'LogicalExpression',
-          operator: '&&',
-          left: left.toAST(),
-          right: right.toAST(),
-        };
-      },
-      EqualityExpression_eq(left, op, right) {
+      ComparisonExpression_binary(left, op, right) {
         return {
           type: 'BinaryExpression',
           operator: op.sourceString,
@@ -375,7 +375,7 @@ class NudgeLangParser {
           right: right.toAST(),
         };
       },
-      RelationalExpression_rel(left, op, right) {
+      AdditiveExpression_binary(left, op, right) {
         return {
           type: 'BinaryExpression',
           operator: op.sourceString,
@@ -383,7 +383,7 @@ class NudgeLangParser {
           right: right.toAST(),
         };
       },
-      AdditiveExpression_add(left, op, right) {
+      MultiplicativeExpression_binary(left, op, right) {
         return {
           type: 'BinaryExpression',
           operator: op.sourceString,
@@ -391,72 +391,41 @@ class NudgeLangParser {
           right: right.toAST(),
         };
       },
-      MultiplicativeExpression_mul(left, op, right) {
-        return {
-          type: 'BinaryExpression',
-          operator: op.sourceString,
-          left: left.toAST(),
-          right: right.toAST(),
-        };
-      },
-      UnaryExpression_unary(op, expr) {
+      UnaryExpression_prefix(op, expr) {
         return {
           type: 'UnaryExpression',
           operator: op.sourceString,
           argument: expr.toAST(),
         };
       },
-      MemberExpression_member(object, _dot, property) {
+      MemberExpression_dot(object, _dot, property) {
         return {
           type: 'MemberExpression',
           object: object.toAST(),
           property: property.sourceString,
+          computed: false,
         };
       },
-      MemberExpression(expr) {
+      MemberExpression_bracket(object, _open, property, _close) {
+        return {
+          type: 'MemberExpression',
+          object: object.toAST(),
+          property: property.toAST(),
+          computed: true,
+        };
+      },
+      MemberExpression_call(callee, args) {
+        return {
+          type: 'CallExpression',
+          callee: callee.toAST(),
+          arguments: args.toAST(),
+        };
+      },
+      Arguments(_open, args, _close) {
+        return args.asIteration().toAST();
+      },
+      PrimaryExpression_paren(_open, expr, _close) {
         return expr.toAST();
-      },
-      PrimaryExpression(expr) {
-        return expr.toAST();
-      },
-      ParenExpression(_open, expr, _close) {
-        return expr.toAST();
-      },
-      identifier(_first, _rest) {
-        return {
-          type: 'Identifier',
-          name: this.sourceString,
-        };
-      },
-      number(_whole, _dot, _fraction) {
-        return {
-          type: 'NumberLiteral',
-          value: parseFloat(this.sourceString),
-        };
-      },
-      string(_open, chars, _close) {
-        return {
-          type: 'StringLiteral',
-          value: chars.sourceString,
-        };
-      },
-      trueLiteral(_true) {
-        return {
-          type: 'BooleanLiteral',
-          value: true,
-        };
-      },
-      falseLiteral(_false) {
-        return {
-          type: 'BooleanLiteral',
-          value: false,
-        };
-      },
-      nullLiteral(_null) {
-        return {
-          type: 'NullLiteral',
-          value: null,
-        };
       },
       ObjectLiteral(_open, properties, _close) {
         return {
@@ -477,6 +446,42 @@ class NudgeLangParser {
           elements: elements.asIteration().toAST(),
         };
       },
+      identifier(_first, _rest) {
+        return {
+          type: 'Identifier',
+          name: this.sourceString,
+        };
+      },
+      number(_whole, _dot, _fraction) {
+        return {
+          type: 'NumberLiteral',
+          value: parseFloat(this.sourceString),
+        };
+      },
+      string(_open, chars, _close) {
+        return {
+          type: 'StringLiteral',
+          value: chars.sourceString,
+        };
+      },
+      trueLiteral(_) {
+        return {
+          type: 'BooleanLiteral',
+          value: true,
+        };
+      },
+      falseLiteral(_) {
+        return {
+          type: 'BooleanLiteral',
+          value: false,
+        };
+      },
+      nullLiteral(_) {
+        return {
+          type: 'NullLiteral',
+          value: null,
+        };
+      },
       _iter(...children) {
         return children.map(c => c.toAST());
       },
@@ -489,9 +494,24 @@ class NudgeLangParser {
   parse(code) {
     const matchResult = this.grammar.match(code);
     if (matchResult.succeeded()) {
-      return this.semantics(matchResult).toAST();
+      try {
+        return this.semantics(matchResult).toAST();
+      } catch (error) {
+        console.error('Error during AST generation:', error);
+        throw new Error('AST generation failed: ' + error.message);
+      }
     } else {
-      throw new Error('Parsing failed: ' + matchResult.message);
+      const expected = matchResult.getExpectedText();
+      const position = matchResult.getRightmostFailurePosition();
+      const lines = code.split('\n');
+      let lineNumber = 1;
+      let column = position;
+      for (const line of lines) {
+        if (column - line.length - 1 < 0) break;
+        column -= line.length + 1;
+        lineNumber++;
+      }
+      throw new Error(`Parsing failed at line ${lineNumber}, column ${column + 1}. Expected: ${expected}`);
     }
   }
 }
