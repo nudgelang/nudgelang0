@@ -4,6 +4,8 @@
 [![GitHub stars](https://img.shields.io/github/stars/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/issues)
 
+[EXPERIMENTAL]
+
 NudgeLang is a powerful, declarative language designed for crafting sophisticated prompts for Large Language Models (LLMs). It provides a structured, modular, and reusable approach to prompt engineering, incorporating advanced techniques and best practices in the field.
 
 ## Table of Contents
