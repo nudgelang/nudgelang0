@@ -45,11 +45,27 @@ describe('NudgeLangParser', () => {
     const textBlock = ast.prompts[0].sections[0].content[0];
     expect(textBlock.type).toBe('TextBlock');
     expect(textBlock.content).toEqual([
-      'Hello, ',
-      { type: 'Interpolation', expression: { type: 'MemberExpression', object: { type: 'Identifier', name: 'params' }, property: 'name' } },
-      '! You are ',
-      { type: 'Interpolation', expression: { type: 'MemberExpression', object: { type: 'Identifier', name: 'params' }, property: 'age' } },
-      ' years old.'
+      'Hello,',
+      { 
+        type: 'Interpolation', 
+        expression: { 
+          type: 'MemberExpression', 
+          object: { type: 'Identifier', name: 'params' }, 
+          property: 'name',
+          computed: false
+        } 
+      },
+      '! You are',
+      { 
+        type: 'Interpolation', 
+        expression: { 
+          type: 'MemberExpression', 
+          object: { type: 'Identifier', name: 'params' }, 
+          property: 'age',
+          computed: false
+        } 
+      },
+      'years old.'
     ]);
   });
 
