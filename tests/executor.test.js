@@ -9,7 +9,11 @@ describe('NudgeLangExecutor', () => {
   let parser;
 
   beforeEach(() => {
-    executor = new NudgeLangExecutor('openai', 'test-api-key');
+    // Read provider and key from environment variables
+    const provider = process.env.NUDGELANG_PROVIDER || 'openai';
+    const apiKey = process.env.NUDGELANG_API_KEY || 'test-api-key';
+    
+    executor = new NudgeLangExecutor(provider, apiKey);
     parser = new NudgeLangParser();
   });
 
@@ -21,7 +25,7 @@ describe('NudgeLangExecutor', () => {
         }
       }
     `;
-    const ast = parser.parse(code);
+    const ast = { type: 'Program', prompts: [parser.parse(code)] };
     const result = await executor.execute(ast);
     expect(result).toBe('Task:\nHello, world!');
   });
@@ -38,7 +42,7 @@ describe('NudgeLangExecutor', () => {
         }
       }
     `;
-    const ast = parser.parse(code);
+    const ast = { type: 'Program', prompts: [parser.parse(code)] };
     const result = await executor.execute(ast, { name: 'Alice' });
     expect(result).toBe('Task:\nHello, Alice! You are 30 years old.');
   });
@@ -58,7 +62,7 @@ describe('NudgeLangExecutor', () => {
         }
       }
     `;
-    const ast = parser.parse(code);
+    const ast = { type: 'Program', prompts: [parser.parse(code)] };
     const resultTrue = await executor.execute(ast, { condition: true });
     expect(resultTrue).toBe('Task:\nCondition is true');
     const resultFalse = await executor.execute(ast, { condition: false });
@@ -78,7 +82,7 @@ describe('NudgeLangExecutor', () => {
         }
       }
     `;
-    const ast = parser.parse(code);
+    const ast = { type: 'Program', prompts: [parser.parse(code)] };
     const result = await executor.execute(ast, { items: ['apple', 'banana', 'cherry'] });
     expect(result).toBe('Task:\nItem: apple\nItem: banana\nItem: cherry\n');
   });
@@ -101,7 +105,7 @@ describe('NudgeLangExecutor', () => {
         }
       }
     `;
-    const ast = parser.parse(code);
+    const ast = { type: 'Program', prompts: [parser.parse(code)] };
     const result = await executor.execute(ast);
     expect(result).toContain('Chain of Thought:');
     expect(result).toContain('Step: Step 1');
@@ -128,7 +132,7 @@ describe('NudgeLangExecutor', () => {
         }
       }
     `;
-    const ast = parser.parse(code);
+    const ast = { type: 'Program', prompts: [parser.parse(code)] };
     const result = await executor.execute(ast, { name: 'Alice' });
     expect(result).toBe('Task:\nHello, ALICE!');
   });

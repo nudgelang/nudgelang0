@@ -1,11 +1,18 @@
 // provider.js
+require('openai/shims/node');
+require('groq-sdk/shims/node');
+require('@anthropic-ai/sdk/shims/node');
+
 const OpenAI = require('openai');
 const Groq = require('groq-sdk');
 const Anthropic = require('@anthropic-ai/sdk');
 
 class ProviderInterface {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
+  constructor() {
+    this.apiKey = process.env.NUDGELANG_API_KEY;
+    if (!this.apiKey) {
+      throw new Error('API key not found in environment variables');
+    }
   }
 
   async generateResponse(prompt, constraints) {
@@ -14,9 +21,9 @@ class ProviderInterface {
 }
 
 class OpenAIProvider extends ProviderInterface {
-  constructor(apiKey) {
-    super(apiKey);
-    this.client = new OpenAI({ apiKey });
+  constructor() {
+    super();
+    this.client = new OpenAI({ apiKey: this.apiKey });
   }
 
   async generateResponse(prompt, constraints) {
@@ -37,9 +44,9 @@ class OpenAIProvider extends ProviderInterface {
 }
 
 class GroqProvider extends ProviderInterface {
-  constructor(apiKey) {
-    super(apiKey);
-    this.client = new Groq({ apiKey });
+  constructor() {
+    super();
+    this.client = new Groq({ apiKey: this.apiKey });
   }
 
   async generateResponse(prompt, constraints) {
@@ -58,9 +65,9 @@ class GroqProvider extends ProviderInterface {
 }
 
 class ClaudeProvider extends ProviderInterface {
-  constructor(apiKey) {
-    super(apiKey);
-    this.client = new Anthropic({ apiKey });
+  constructor() {
+    super();
+    this.client = new Anthropic({ apiKey: this.apiKey });
   }
 
   async generateResponse(prompt, constraints) {
@@ -78,16 +85,18 @@ class ClaudeProvider extends ProviderInterface {
   }
 }
 
-function createProvider(type, apiKey) {
-  switch (type.toLowerCase()) {
+function createProvider(type) {
+  const providerType = type || process.env.NUDGELANG_PROVIDER || 'openai';
+  
+  switch (providerType.toLowerCase()) {
     case 'openai':
-      return new OpenAIProvider(apiKey);
+      return new OpenAIProvider();
     case 'groq':
-      return new GroqProvider(apiKey);
+      return new GroqProvider();
     case 'claude':
-      return new ClaudeProvider(apiKey);
+      return new ClaudeProvider();
     default:
-      throw new Error(`Unsupported provider type: ${type}`);
+      throw new Error(`Unsupported provider type: ${providerType}`);
   }
 }
 

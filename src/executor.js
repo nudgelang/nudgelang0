@@ -12,14 +12,23 @@ class NudgeLangExecutor {
   }
 
   registerPrompt(name, ast) {
-    this.registeredPrompts.set(name, ast);
+    if (ast.type !== 'Program' || ast.prompts.length === 0) {
+      throw new Error('Invalid AST: Expected a Program with at least one Prompt');
+    }
+    this.registeredPrompts.set(name, ast.prompts[0]);
   }
 
   async execute(ast, params = {}) {
-    if (ast.type !== 'Prompt') {
-      throw new Error('Invalid AST: Root node must be a Prompt');
+    if (ast.type !== 'Program' || ast.prompts.length === 0) {
+      throw new Error('Invalid AST: Root node must be a Program with at least one Prompt');
     }
-
+  
+    const promptAst = ast.prompts[0]; // Execute the first prompt in the program
+  
+    if (promptAst.type !== 'Prompt') {
+      throw new Error('Invalid AST: Expected a Prompt node');
+    }
+  
     const context = {
       params,
       meta: {},
@@ -28,18 +37,18 @@ class NudgeLangExecutor {
       output: {},
       hooks: {},
     };
-
-    for (const section of ast.sections) {
+  
+    for (const section of promptAst.sections) {
       await this.executeSection(section, context);
     }
-
+  
     const finalPrompt = this.generateFinalPrompt(context);
     const response = await this.provider.generateResponse(finalPrompt, context.constraints);
-
+  
     if (context.hooks.postProcess) {
       return context.hooks.postProcess(response);
     }
-
+  
     return response;
   }
 
