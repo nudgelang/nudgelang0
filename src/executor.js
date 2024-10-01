@@ -104,8 +104,13 @@ class NudgeLangExecutor {
 
   executeParams(section, context) {
     for (const param of section.params) {
-      if (!(param.name in context.params) && param.defaultValue !== null) {
-        context.params[param.name] = this.evaluateExpression(param.defaultValue, context);
+      if (!(param.name in context.params)) {
+        if (param.defaultValue !== undefined) {
+          context.params[param.name] = this.evaluateExpression(param.defaultValue, context);
+        } else {
+          // Set a default value or throw an error if required
+          context.params[param.name] = null;
+        }
       }
     }
   }
@@ -339,7 +344,7 @@ class NudgeLangExecutor {
 
 createHookFunction(hook, context) {
   return async (input) => {
-    const hookContext = { ...context, params: input };
+    const hookContext = { ...context, params: { ...context.params, ...input } };
     await this.executeStatements(hook.body, hookContext);
     return hookContext.params;
   };

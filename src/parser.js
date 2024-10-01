@@ -66,7 +66,7 @@ class NudgeLangParser {
           type: 'ParamDeclaration',
           name: name.sourceString,
           paramType: paramType.toAST(),
-          defaultValue: defaultValue.children.length > 0 ? defaultValue.toAST() : null,
+          defaultValue: defaultValue.children.length > 0 ? defaultValue.toAST()[0] : null,
         };
       },
       Type(baseType, arrayModifier, optionalModifier) {
