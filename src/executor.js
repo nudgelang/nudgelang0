@@ -42,15 +42,22 @@ class NudgeLangExecutor {
       await this.executeSection(section, context);
     }
   
+    // Call preProcess hook if it exists
+    if (context.hooks.preProcess) {
+      context.params = await context.hooks.preProcess(context.params);
+    }
+  
     const finalPrompt = this.generateFinalPrompt(context);
     const response = await this.provider.generateResponse(finalPrompt, context.constraints);
   
+    // Call postProcess hook if it exists
     if (context.hooks.postProcess) {
       return context.hooks.postProcess(response);
     }
   
     return response;
   }
+  
 
   async executeSection(section, context) {
     switch (section.type) {
@@ -162,20 +169,21 @@ class NudgeLangExecutor {
   }
 
   async executeTechnique(section, context) {
-    const technique = section.technique;
-    switch (technique.type) {
-      case 'ChainOfThought':
-        await this.executeChainOfThought(technique, context);
-        break;
-      case 'FewShot':
-        this.executeFewShot(technique, context);
-        break;
-      case 'ZeroShot':
-        this.executeZeroShot(technique, context);
-        break;
-      // Implement other techniques here
-      default:
-        throw new Error(`Unknown technique type: ${technique.type}`);
+    for (const technique of section.techniques) {
+      switch (technique.type) {
+        case 'ChainOfThought':
+          await this.executeChainOfThought(technique, context);
+          break;
+        case 'FewShot':
+          this.executeFewShot(technique, context);
+          break;
+        case 'ZeroShot':
+          this.executeZeroShot(technique, context);
+          break;
+        // Implement other techniques here
+        default:
+          throw new Error(`Unknown technique type: ${technique.type}`);
+      }
     }
   }
 
@@ -224,30 +232,144 @@ class NudgeLangExecutor {
     return this.execute(promptAst, useContext);
   }
 
-  interpolate(text, context) {
-    return text.replace(/\${([^}]+)}/g, (_, exp) => {
-      return this.evaluateExpression({ type: 'Expression', expression: exp }, context);
-    });
+  interpolate(contentArray, context) {
+    if (typeof contentArray === 'string') {
+      return contentArray.replace(/\${([^}]+)}/g, (_, exp) => {
+        return this.evaluateExpression({ type: 'Identifier', name: exp.trim() }, context);
+      });
+    } else if (Array.isArray(contentArray)) {
+      return contentArray.map(item => {
+        if (typeof item === 'string') {
+          return item;
+        } else if (item.type === 'Interpolation') {
+          return this.evaluateExpression(item.expression, context);
+        } else {
+          return '';
+        }
+      }).join(''); // Ensure no spaces are removed
+    } else {
+      return '';
+    }
   }
-
+  
   evaluateExpression(expr, context) {
-    // Implement expression evaluation logic here
-    // This should handle various types of expressions (literals, identifiers, binary operations, etc.)
-    // For simplicity, we'll just return the expression itself for now
-    return expr;
+  switch (expr.type) {
+    case 'Identifier':
+      // Handle identifiers (variables)
+      return context[expr.name] || context.params[expr.name] || context[expr.name];
+    case 'StringLiteral':
+      return expr.value;
+    case 'NumberLiteral':
+      return expr.value;
+    case 'BooleanLiteral':
+      return expr.value;
+    case 'NullLiteral':
+      return null;
+    case 'ArrayLiteral':
+      return expr.elements.map(element => this.evaluateExpression(element, context));
+    case 'ObjectLiteral':
+      const obj = {};
+      for (const prop of expr.properties) {
+        obj[prop.key] = this.evaluateExpression(prop.value, context);
+      }
+      return obj;
+    case 'BinaryExpression':
+      const left = this.evaluateExpression(expr.left, context);
+      const right = this.evaluateExpression(expr.right, context);
+      switch (expr.operator) {
+        case '+':
+          return left + right;
+        case '-':
+          return left - right;
+        case '*':
+          return left * right;
+        case '/':
+          return left / right;
+        // Add other operators as needed
+      }
+      break;
+    case 'LogicalExpression':
+        const leftLogical = this.evaluateExpression(expr.left, context);
+        const rightLogical = this.evaluateExpression(expr.right, context);
+        switch (expr.operator) {
+          case '&&':
+            return leftLogical && rightLogical;
+          case '||':
+            return leftLogical || rightLogical;
+          // Add other logical operators as needed
+        }
+      break;     
+    case 'MemberExpression':
+        const object = this.evaluateExpression(expr.object, context);
+        let property;
+        if (expr.computed) {
+          property = this.evaluateExpression(expr.property, context);
+        } else {
+          property = expr.property;
+        }
+        return object[property];
+      break;
+    case 'CallExpression':
+        const calleeObj = expr.callee;
+        let func, thisArg;
+      
+        if (calleeObj.type === 'MemberExpression') {
+          thisArg = this.evaluateExpression(calleeObj.object, context);
+          const prop = calleeObj.computed
+            ? this.evaluateExpression(calleeObj.property, context)
+            : calleeObj.property;
+          func = thisArg[prop];
+        } else {
+          func = this.evaluateExpression(calleeObj, context);
+          thisArg = null;
+        }
+      
+        const args = expr.arguments.map(arg => this.evaluateExpression(arg, context));
+      
+        if (typeof func !== 'function') {
+          throw new Error(`Callee is not a function: ${func}`);
+        }
+      
+        return func.apply(thisArg, args);
+    // Handle other expression types
+    default:
+      throw new Error(`Unknown expression type: ${expr.type}`);
   }
+}
 
-  createHookFunction(hook, context) {
-    return (input) => {
-      const hookContext = { ...context, [hook.param]: input };
-      return this.executeBlock(hook.block, hookContext);
-    };
+createHookFunction(hook, context) {
+  return async (input) => {
+    const hookContext = { ...context, params: input };
+    await this.executeStatements(hook.body, hookContext);
+    return hookContext.params;
+  };
+}
+
+async executeStatements(statements, context) {
+  for (const stmt of statements) {
+    await this.executeStatement(stmt, context);
   }
+}
+
+async executeStatement(stmt, context) {
+  switch (stmt.type) {
+    case 'AssignmentStatement':
+      const value = this.evaluateExpression(stmt.right, context);
+      context.params[stmt.left.name] = value;
+      break;
+    case 'ReturnStatement':
+      context.returnValue = this.evaluateExpression(stmt.argument, context);
+      break;
+    // Handle other statement types as needed
+    default:
+      throw new Error(`Unknown statement type: ${stmt.type}`);
+  }
+}
 
   generateFinalPrompt(context) {
     let prompt = '';
 
-    if (context.context) {
+    if (context.context && Object.keys(context.context).length > 0) {
       prompt += `Context:\n${JSON.stringify(context.context, null, 2)}\n\n`;
     }
 

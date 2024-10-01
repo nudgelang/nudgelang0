@@ -252,7 +252,7 @@ class NudgeLangParser {
       ChainOfThoughtStep(_step, _openParen, name, _closeParen, block) {
         return {
           type: 'ChainOfThoughtStep',
-          name: name.sourceString,
+          name: name.toAST().value, // Extract the string value
           block: block.toAST(),
         };
       },
