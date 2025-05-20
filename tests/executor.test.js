@@ -128,7 +128,7 @@ describe('NudgeLangExecutor', () => {
           name: string;
         }
         hooks {
-          preProcess(input) {
+          preProcess: (input) => {
             input.name = input.name.toUpperCase();
             return input;
           }

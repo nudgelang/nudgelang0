@@ -20,10 +20,10 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
+    "chevrotain": "^10.5.0",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "groq-sdk": "^0.7.0",
-    "ohm-js": "^16.0.0",
     "openai": "^4.64.0"
   },
   "devDependencies": {

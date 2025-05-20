@@ -1,12 +1,12 @@
-# NudgeLang: A Declarative Language for LLM Prompts
+# NudgeLang0: A Declarative Language for LLM Prompts
 
-[![GitHub license](https://img.shields.io/github/license/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/terraprompt/nudgelang.svg)](https://github.com/terraprompt/nudgelang/issues)
+[![GitHub license](https://img.shields.io/github/license/nudgelang/nudgelang0.svg)](https://github.com/nudgelang/nudgelang0/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/nudgelang/nudgelang0.svg)](https://github.com/nudgelang/nudgelang0/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/nudgelang/nudgelang0.svg)](https://github.com/nudgelang/nudgelang0/issues)
 
 [EXPERIMENTAL]
 
-NudgeLang is a powerful, declarative language designed for crafting sophisticated prompts for Large Language Models (LLMs). It provides a structured, modular, and reusable approach to prompt engineering, incorporating advanced techniques and best practices in the field.
+NudgeLang0 is a powerful, declarative language designed for crafting sophisticated prompts for Large Language Models (LLMs). It provides a structured, modular, and reusable approach to prompt engineering, incorporating advanced techniques and best practices in the field.
 
 ## Table of Contents
 
@@ -22,26 +22,26 @@ NudgeLang is a powerful, declarative language designed for crafting sophisticate
 
 ## Features
 
-- **Declarative Syntax**: Write clear, readable prompts with a structured syntax.
-- **Modularity**: Import and reuse prompts across your projects.
-- **Advanced Techniques**: Built-in support for Chain-of-Thought, Tree-of-Thoughts, ReAct, and more.
-- **Type System**: Optional type annotations for improved safety and clarity.
-- **Dynamic Content**: Use interpolation and control structures for flexible prompt generation.
-- **Execution Hooks**: Pre-process inputs and post-process outputs with custom logic.
-- **Output Specification**: Define structured outputs, including JSON schemas.
-- **Extensibility**: Easily extend the language with new techniques and features.
+- **Declarative Syntax**: Write clear, readable prompts with a structured syntax that feels natural and intuitive.
+- **Modularity**: Import and reuse prompts across your projects, saving time and maintaining consistency.
+- **Advanced Techniques**: Built-in support for Chain-of-Thought, Tree-of-Thoughts, ReAct, and more - no need to implement these from scratch.
+- **Type System**: Optional type annotations for improved safety and clarity, catching errors before they happen.
+- **Dynamic Content**: Use interpolation and control structures for flexible prompt generation that adapts to your needs.
+- **Execution Hooks**: Pre-process inputs and post-process outputs with custom logic, giving you full control over the prompt lifecycle.
+- **Output Specification**: Define structured outputs, including JSON schemas, ensuring consistent and predictable results.
+- **Extensibility**: Easily extend the language with new techniques and features to suit your specific use cases.
 
 ## Installation
 
-To install NudgeLang, use npm:
+To install NudgeLang0, use npm:
 
 ```bash
-npm install nudgelang
+npm install nudgelang0
 ```
 
 ## Quick Start
 
-Here's a simple example to get you started with NudgeLang:
+Here's a simple example to get you started with NudgeLang0:
 
 ```nudgelang
 prompt SimpleMathSolver {
@@ -90,9 +90,9 @@ prompt SimpleMathSolver {
 To use this prompt:
 
 ```javascript
-import { parsePrompt, executePrompt } from 'nudgelang';
+import { parsePrompt, executePrompt } from 'nudgelang0';
 
-const promptCode = '...'; // Your NudgeLang code here
+const promptCode = '...'; // Your NudgeLang0 code here
 const parsedPrompt = parsePrompt(promptCode);
 
 const result = await executePrompt(parsedPrompt, {
@@ -105,55 +105,55 @@ console.log(result.steps);    // Outputs the reasoning steps
 
 ## Language Overview
 
-NudgeLang is structured into several key sections:
+NudgeLang0 is structured into several key sections that make prompt engineering more manageable:
 
-- **meta**: Metadata about the prompt
-- **params**: Input parameters for the prompt
-- **body**: The main content of the prompt
-- **technique**: Advanced prompting techniques to be used
-- **constraints**: Execution constraints (e.g., max tokens)
-- **output**: Specification for the expected output
-- **hooks**: Pre-processing and post-processing logic
+- **meta**: Metadata about the prompt (name, version, description)
+- **params**: Input parameters for the prompt (with type safety)
+- **body**: The main content of the prompt (where the magic happens)
+- **technique**: Advanced prompting techniques to be used (CoT, ToT, etc.)
+- **constraints**: Execution constraints (e.g., max tokens, temperature)
+- **output**: Specification for the expected output (structure and format)
+- **hooks**: Pre-processing and post-processing logic (custom transformations)
 
-For a complete language specification, please refer to our [Language Guide](https://github.com/terraprompt/nudgelang/blob/main/docs/LANGUAGE_GUIDE.md).
+For a complete language specification, please refer to our [Language Guide](https://github.com/nudgelang/nudgelang0/blob/main/specs/LANGUAGE_GUIDE.md).
 
 ## Advanced Techniques
 
-NudgeLang supports a variety of advanced prompting techniques, including:
+NudgeLang0 supports a variety of advanced prompting techniques that can significantly improve your LLM interactions:
 
-- Chain of Thought (CoT)
-- Tree of Thoughts (ToT)
-- ReAct (Reasoning and Acting)
-- ReWOO (Reasoning Without Observation)
-- Active Prompting
-- Self-Consistency
-- Automatic Prompt Engineering (APE)
-- Expert Prompting
+- Chain of Thought (CoT): Break down complex problems into manageable steps
+- Tree of Thoughts (ToT): Explore multiple solution paths simultaneously
+- ReAct (Reasoning and Acting): Combine reasoning with action planning
+- ReWOO (Reasoning Without Observation): Efficient problem-solving approach
+- Active Prompting: Dynamically adapt prompts based on context
+- Self-Consistency: Generate multiple solutions and find consensus
+- Automatic Prompt Engineering (APE): Optimize prompts automatically
+- Expert Prompting: Leverage domain-specific knowledge
 
-For details on how to use these techniques, check our [Advanced Techniques Guide](https://github.com/terraprompt/nudgelang/blob/main/docs/ADVANCED_TECHNIQUES.md).
+For details on how to use these techniques, check our [Advanced Techniques Guide](https://github.com/nudgelang/nudgelang0/blob/main/specs/ADVANCED_TECHNIQUES.md).
 
 ## Examples
 
 We provide a variety of examples to help you get started:
 
-- [Simple Math Solver](https://github.com/terraprompt/nudgelang/blob/main/examples/math_solver.nudge)
-- [Creative Writing Assistant](https://github.com/terraprompt/nudgelang/blob/main/examples/creative_writer.nudge)
-- [Multi-step Reasoning Problem Solver](https://github.com/terraprompt/nudgelang/blob/main/examples/problem_solver.nudge)
+- [Simple Math Solver](https://github.com/nudgelang/nudgelang0/blob/main/examples/math_solver.nudge)
+- [Creative Writing Assistant](https://github.com/nudgelang/nudgelang0/blob/main/examples/creative_writer.nudge)
+- [Multi-step Reasoning Problem Solver](https://github.com/nudgelang/nudgelang0/blob/main/examples/problem_solver.nudge)
 
 ## API Reference
 
-For detailed information about the NudgeLang API, including the `parsePrompt` and `executePrompt` functions, please refer to our [API Documentation](https://github.com/terraprompt/nudgelang/blob/main/docs/API.md).
+For detailed information about the NudgeLang0 API, including the `parsePrompt` and `executePrompt` functions, please refer to our [API Documentation](https://github.com/nudgelang/nudgelang0/blob/main/specs/API.md).
 
 ## Contributing
 
-We welcome contributions to NudgeLang! Please see our [Contributing Guide](https://github.com/terraprompt/nudgelang/blob/main/CONTRIBUTING.md) for more information on how to get started.
+We welcome contributions to NudgeLang0! Whether you're fixing bugs, adding features, or improving documentation, your help makes NudgeLang0 better for everyone. Please see our [Contributing Guide](https://github.com/nudgelang/nudgelang0/blob/main/CONTRIBUTING.md) for more information on how to get started.
 
 ## License
 
-NudgeLang is released under the MIT License. See the [LICENSE](https://github.com/terraprompt/nudgelang/blob/main/LICENSE) file for more details.
+NudgeLang0 is released under the MIT License. See the [LICENSE](https://github.com/nudgelang/nudgelang0/blob/main/LICENSE) file for more details.
 
 ---
 
-For more information, updates, and community discussions, please visit our [GitHub repository](https://github.com/terraprompt/nudgelang). If you encounter any issues or have suggestions, please [open an issue](https://github.com/terraprompt/nudgelang/issues/new).
+For more information, updates, and community discussions, please visit our [GitHub repository](https://github.com/nudgelang/nudgelang0). If you encounter any issues or have suggestions, please [open an issue](https://github.com/nudgelang/nudgelang0/issues/new).
 
-Happy prompting with NudgeLang!
+Happy prompting with NudgeLang0! 🚀
